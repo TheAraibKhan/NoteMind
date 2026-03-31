@@ -56,8 +56,8 @@ app.use(
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
-// Rate Limiting - 100 requests per 15 minutes per IP
-app.use(rateLimitMiddleware(15 * 60 * 1000, 100));
+// Rate Limiting - 1000 requests per 15 minutes per IP
+app.use(rateLimitMiddleware(15 * 60 * 1000, 1000));
 
 // Analytics Middleware
 app.use(analyticsMiddleware);
