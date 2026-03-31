@@ -53,7 +53,7 @@ if not exist ".env" (
         echo PORT=5000
         echo MONGODB_URI=mongodb://localhost:27017/notemind
         echo JWT_SECRET=your-secret-key-change-in-production
-        echo OPENAI_API_KEY=sk-your-key-here
+        echo GEMINI_API_KEY=AIzaSy...
         echo CORS_ORIGIN=http://localhost:3000
     ) > .env
     echo ✓ Created backend\.env (please update with real values)

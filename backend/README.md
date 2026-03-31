@@ -25,7 +25,7 @@ RESTful API for NoteMind - AI-Powered Learning Platform
 
 🤖 **AI Integration**
 
-- OpenAI GPT-4 integration (ready)
+- Google Gemini API integration (ready)
 - Content generation pipeline
 - Quiz question creation
 - Flashcard automation
@@ -117,13 +117,13 @@ Token from `/api/auth/login` or `/api/auth/register`
 
 ### AI Service
 
-Uses the OpenAI API from `src/services/aiService.ts`.
-If OpenAI is unavailable or out of quota, the backend falls back to Wikipedia-based notes and derives quiz/flashcards from that free source.
+Uses the Google Gemini API from `src/services/aiService.ts`.
+If Gemini is unavailable or out of quota, the backend falls back to Wikipedia-based notes and derives quiz/flashcards from that free source.
 
 Required env:
 
-1. `OPENAI_API_KEY=sk-...`
-2. Optional: `OPENAI_MODEL=gpt-4.1-mini`
+1. `GEMINI_API_KEY=AIzaSy...`
+2. Optional: `GEMINI_MODEL=gemini-2.0-flash`
 3. Optional free fallback override: `FREE_NOTES_API_URL=https://en.wikipedia.org/w/api.php`
 4. Optional free-only mode: `USE_FREE_API_ONLY=true`
 
@@ -196,7 +196,7 @@ Set production environment variables on hosting platform.
 PORT=5000
 MONGODB_URI=mongodb+srv://...
 JWT_SECRET=secure_random_string
-OPENAI_API_KEY=sk-...
+GEMINI_API_KEY=AIzaSy...
 NODE_ENV=production
 CORS_ORIGIN=https://frontend-domain.com
 ```

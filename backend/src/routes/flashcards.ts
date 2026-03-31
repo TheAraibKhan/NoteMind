@@ -1,15 +1,26 @@
-import express, { Router } from 'express';
-import * as flashcardController from '@/controllers/flashcards';
-import { authMiddleware, optionalAuth } from '@/middleware/auth';
+import express, { Router } from "express";
+import * as flashcardController from "@/controllers/flashcards";
+import { authMiddleware, optionalAuth } from "@/middleware/auth";
+import { validateTopicInput } from "@/middleware/aiValidation";
+import { aiRateLimitMiddleware } from "@/middleware/rateLimit";
 
 const router: Router = express.Router();
 
-router.post('/generate', optionalAuth, flashcardController.generateFlashcards);
-router.get('/', authMiddleware, flashcardController.getFlashcards);
+// AI generation route (with validation + AI rate limiting)
+router.post(
+  "/generate",
+  optionalAuth,
+  aiRateLimitMiddleware(),
+  validateTopicInput,
+  flashcardController.generateFlashcards,
+);
+
+// CRUD routes (auth required)
+router.get("/", authMiddleware, flashcardController.getFlashcards);
 router.patch(
-  '/:flashcardId/card/:cardIndex',
+  "/:flashcardId/card/:cardIndex",
   authMiddleware,
-  flashcardController.updateFlashcardMastery
+  flashcardController.updateFlashcardMastery,
 );
 
 export default router;

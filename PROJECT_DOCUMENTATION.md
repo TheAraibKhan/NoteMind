@@ -48,7 +48,7 @@ NoteMind is a production-grade EdTech platform that revolutionizes how students 
 - **Language**: TypeScript
 - **Database**: MongoDB Atlas (Cloud)
 - **Authentication**: JWT
-- **AI Integration**: OpenAI GPT-4 / Google Gemini
+- **AI Integration**: Google Gemini
 - **Password Hashing**: bcryptjs
 - **Security**: Helmet, CORS
 
@@ -185,7 +185,7 @@ backend/
 │   │   └── auth.ts                    # JWT verification
 │   │
 │   ├── services/
-│   │   └── aiService.ts               # OpenAI integration
+│   │   └── aiService.ts               # Gemini integration
 │   │
 │   └── config/
 │       └── database.ts                # MongoDB connection
@@ -349,7 +349,7 @@ PATCH  /api/flashcards/:id/card/:idx - Update card mastery (protected)
 
 - Node.js 18+
 - MongoDB Atlas account
-- OpenAI API key
+- Google Gemini API key
 - npm or yarn
 
 ### Frontend Setup
@@ -389,7 +389,7 @@ cat > .env << EOF
 PORT=5000
 MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/notemind
 JWT_SECRET=your_super_secret_key_here_change_this_in_production
-OPENAI_API_KEY=sk-xxxxxx...
+GEMINI_API_KEY=AIzaSy...
 NODE_ENV=development
 CORS_ORIGIN=http://localhost:3000
 EOF
@@ -429,7 +429,7 @@ MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/notemind
 JWT_SECRET=change_this_to_secure_random_string
 
 # AI Service
-OPENAI_API_KEY=sk-xxxxxxxx
+GEMINI_API_KEY=AIzaSy...
 
 # CORS
 CORS_ORIGIN=http://localhost:3000
@@ -510,7 +510,7 @@ vercel deploy --prod
 PORT=10000
 MONGODB_URI=mongodb+srv://prod:pass@prod-cluster.mongodb.net/notemind
 JWT_SECRET=your_production_secret_key
-OPENAI_API_KEY=sk-prod-xxxxx
+GEMINI_API_KEY=AIzaSy...
 NODE_ENV=production
 CORS_ORIGIN=https://your-frontend.vercel.app
 ```
@@ -528,7 +528,7 @@ User Input (Topic)
     ↓
 API Request to /api/notes/generate
     ↓
-OpenAI GPT-4 Response
+Google Gemini Response
     ↓
 Parse & Structure Content
     ↓

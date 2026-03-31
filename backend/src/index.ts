@@ -12,14 +12,21 @@ import flashcardRoutes from "./routes/flashcards";
 import { rateLimitMiddleware } from "./middleware/rateLimit";
 import { paginate } from "./middleware/validation";
 import { analyticsMiddleware, getAnalytics } from "./middleware/analytics";
+import { getAIServiceHealth } from "./services/aiService";
+import { cachingService } from "./services/cachingService";
+import { logger } from "./utils/logger";
 
 dotenv.config();
 
 const app = express();
 let dbStatus: "connected" | "degraded" = "degraded";
 let server: ReturnType<typeof app.listen> | undefined;
+const startTime = Date.now();
 
-// Security & Performance Middleware
+// ============================================================================
+// SECURITY & PERFORMANCE MIDDLEWARE
+// ============================================================================
+
 app.use(helmet());
 
 const normalizeOrigin = (value: string): string => value.replace(/\/$/, "");
@@ -43,32 +50,37 @@ app.use(
         return;
       }
 
+      logger.warn("CORS", `Blocked request from ${origin}`, {
+        allowed: configuredOrigins,
+      });
       callback(
         new Error(
-          `CORS blocked for origin ${origin}. Allowed: ${configuredOrigins.join(
-            ", ",
-          )}`,
+          `CORS blocked for origin ${origin}. Allowed: ${configuredOrigins.join(", ")}`,
         ),
       );
     },
   }),
 );
+
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
-// Rate Limiting - 1000 requests per 15 minutes per IP
-app.use(rateLimitMiddleware(15 * 60 * 1000, 1000));
+// Global rate limiting — 1000 requests per 15 minutes per IP
+app.use(rateLimitMiddleware(15 * 60 * 1000, 1000, "global"));
 
-// Analytics Middleware
+// Analytics middleware
 app.use(analyticsMiddleware);
 
 // Request ID for tracking
-app.use((req, res, next) => {
+app.use((req, _res, next) => {
   (req as any).id = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   next();
 });
 
-// Database Connection with Retry Logic (Optional for Development)
+// ============================================================================
+// DATABASE CONNECTION
+// ============================================================================
+
 const connectDB = async (): Promise<boolean> => {
   try {
     const maxRetries = 3;
@@ -81,95 +93,151 @@ const connectDB = async (): Promise<boolean> => {
           },
         );
         dbStatus = "connected";
-        console.log("MongoDB connected");
+        logger.info("Database", "MongoDB connected successfully");
         return true;
       } catch (err) {
-        console.error(
-          `MongoDB connection attempt ${i + 1} failed:`,
-          err instanceof Error ? err.message : err,
+        logger.error(
+          "Database",
+          `Connection attempt ${i + 1} failed`,
+          err as Error,
         );
         if (i < maxRetries - 1) {
-          console.log(`Retry ${i + 1}/${maxRetries}...`);
+          logger.info("Database", `Retrying in 2s... (${i + 1}/${maxRetries})`);
           await new Promise((resolve) => setTimeout(resolve, 2000));
         }
       }
     }
 
     dbStatus = "degraded";
-    console.log("MongoDB not available - API running in degraded mode");
-    console.log("MONGODB_URI present:", !!process.env.MONGODB_URI);
+    logger.warn(
+      "Database",
+      "MongoDB not available — running in degraded mode",
+      {
+        uriPresent: !!process.env.MONGODB_URI,
+      },
+    );
     return false;
   } catch (error) {
     dbStatus = "degraded";
-    console.log("Database optional for development mode");
+    logger.warn("Database", "Database connection failed", { mode: "degraded" });
     return false;
   }
 };
 
-// Health Check & System Status
-app.get("/api/health", (req, res) => {
+// ============================================================================
+// HEALTH & DIAGNOSTICS ENDPOINTS
+// ============================================================================
+
+app.get("/api/health", (_req, res) => {
+  const uptimeSeconds = Math.round((Date.now() - startTime) / 1000);
+  const memUsage = process.memoryUsage();
+
   res.json({
     status: dbStatus === "connected" ? "OK" : "DEGRADED",
-    uptime: process.uptime(),
-    timestamp: new Date(),
-    environment: process.env.NODE_ENV,
+    uptime: `${uptimeSeconds}s`,
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || "development",
     database: dbStatus,
+    ai: getAIServiceHealth(),
+    memory: {
+      heapUsed: `${Math.round(memUsage.heapUsed / 1024 / 1024)}MB`,
+      heapTotal: `${Math.round(memUsage.heapTotal / 1024 / 1024)}MB`,
+      rss: `${Math.round(memUsage.rss / 1024 / 1024)}MB`,
+    },
   });
 });
 
-// Analytics Endpoint (Admin only - should add auth in production)
-app.get("/api/admin/analytics", (req, res) => {
-  // In production, verify admin token here
+// Analytics endpoint
+app.get("/api/admin/analytics", (_req, res) => {
   res.json(getAnalytics());
 });
 
-// Routes with Pagination
+// ============================================================================
+// ROUTES
+// ============================================================================
+
 app.use("/api/auth", authRoutes);
 app.use("/api/notes", paginate(10), notesRoutes);
 app.use("/api/quiz", paginate(5), quizRoutes);
 app.use("/api/progress", paginate(10), progressRoutes);
 app.use("/api/flashcards", paginate(10), flashcardRoutes);
 
-// Error Handling Middleware
-app.use((err: any, req: any, res: any, next: any) => {
-  console.error(`[${req.id}] Error:`, err.message);
+// ============================================================================
+// ERROR HANDLING
+// ============================================================================
+
+// Global error handler — MUST be 4-argument function for Express to recognise it
+app.use((err: any, req: any, res: any, _next: any) => {
+  const requestId = req.id || "unknown";
+
+  logger.error(
+    "GlobalError",
+    err.message || "Unhandled error",
+    err instanceof Error ? err : undefined,
+    {
+      path: req.path,
+      method: req.method,
+      requestId,
+    },
+  );
 
   // Handle specific error types
   if (err.name === "ValidationError") {
     return res.status(400).json({
-      error: "Validation Error",
-      details: err.message,
-      requestId: req.id,
+      success: false,
+      error: "Validation error",
+      details: process.env.NODE_ENV === "development" ? err.message : undefined,
+      requestId,
     });
   }
 
   if (err.name === "CastError") {
     return res.status(400).json({
+      success: false,
       error: "Invalid ID format",
-      requestId: req.id,
+      requestId,
     });
   }
 
   if (err.name === "JsonWebTokenError") {
     return res.status(401).json({
+      success: false,
       error: "Invalid token",
-      requestId: req.id,
+      requestId,
     });
   }
 
+  if (err.message?.includes("CORS")) {
+    return res.status(403).json({
+      success: false,
+      error: "Cross-origin request blocked",
+      requestId,
+    });
+  }
+
+  // Generic 500 — NEVER expose internal error details in production
   res.status(err.status || 500).json({
-    error: err.message || "Internal Server Error",
-    requestId: req.id,
+    success: false,
+    error:
+      process.env.NODE_ENV === "development"
+        ? err.message
+        : "An internal error occurred. Please try again.",
+    requestId,
   });
 });
 
-// 404 Handler
+// 404 handler
 app.use((req, res) => {
   res.status(404).json({
+    success: false,
     error: "API endpoint not found",
     path: req.path,
   });
 });
+
+// ============================================================================
+// SERVER START
+// ============================================================================
 
 const PORT = process.env.PORT || 5000;
 
@@ -180,6 +248,10 @@ const logStartupBanner = () => {
   console.log(`  Server:  http://localhost:${PORT}`);
   console.log(`  Env:     ${process.env.NODE_ENV || "development"}`);
   console.log(`  DB:      ${dbStatus}`);
+  console.log(
+    `  Gemini:  ${process.env.GEMINI_API_KEY ? "configured" : "not configured"}`,
+  );
+  console.log(`  Model:   ${process.env.GEMINI_MODEL || "gemini-2.0-flash"}`);
   console.log("========================================\n");
 };
 
@@ -190,9 +262,15 @@ const startServer = async () => {
 
 void startServer();
 
-// Graceful Shutdown
-process.on("SIGTERM", () => {
-  console.log("SIGTERM received, shutting down gracefully...");
+// ============================================================================
+// GRACEFUL SHUTDOWN
+// ============================================================================
+
+const shutdown = (signal: string) => {
+  console.log(`\n${signal} received, shutting down gracefully...`);
+
+  // Cleanup cache
+  cachingService.shutdown();
 
   if (!server) {
     mongoose.connection.close(false);
@@ -201,9 +279,29 @@ process.on("SIGTERM", () => {
   }
 
   server.close(() => {
+    logger.info("Server", "HTTP server closed");
     mongoose.connection.close(false);
     process.exit(0);
   });
+
+  // Force shutdown after 10 seconds
+  setTimeout(() => {
+    logger.error("Server", "Forced shutdown after timeout");
+    process.exit(1);
+  }, 10_000);
+};
+
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));
+
+// Catch unhandled rejections — log but don't crash
+process.on("unhandledRejection", (reason: unknown) => {
+  logger.error("Process", "Unhandled Promise Rejection", reason as Error);
+});
+
+process.on("uncaughtException", (error: Error) => {
+  logger.error("Process", "Uncaught Exception — process will exit", error);
+  process.exit(1);
 });
 
 export default app;

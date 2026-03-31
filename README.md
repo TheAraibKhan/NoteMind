@@ -46,8 +46,8 @@ Create `backend/.env` with values like:
 PORT=5000
 MONGODB_URI=your_mongodb_connection_string
 JWT_SECRET=your_jwt_secret
-OPENAI_API_KEY=your_openai_key
-OPENAI_MODEL=gpt-4.1-mini
+GEMINI_API_KEY=AIzaSy...
+GEMINI_MODEL=gemini-2.0-flash
 ```
 
 ### Frontend

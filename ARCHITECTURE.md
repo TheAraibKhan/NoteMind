@@ -54,7 +54,7 @@
 │  │  • generateNotesContent  │ │
 │  │  • generateQuizQuestions │ │
 │  │  • generateFlashcards    │ │
-│  │  (OpenAI Integration)    │ │
+│  │  (Gemini Integration)    │ │
 │  └──────────────────────────┘ │
 └──────────────────┬─────────────┘
                    │
@@ -99,7 +99,7 @@ POST /api/notes/generate
     ↓
 [AI Service] ← Call generateNotesContent(topic)
     ↓
-[Mock/OpenAI] ← Generate structured notes
+[Google Gemini] ← Generate structured notes
     ↓
 [Note Model] ← Create new document
     ↓

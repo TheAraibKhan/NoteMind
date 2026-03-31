@@ -10,6 +10,7 @@
     "lint": "eslint src/"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@types/node": "^20.19.37",
     "axios": "^1.6.0",
     "bcryptjs": "^2.4.3",
@@ -20,8 +21,7 @@
     "helmet": "^7.2.0",
     "jsonwebtoken": "^9.0.3",
     "mongodb": "^7.1.0",
-    "mongoose": "^7.8.9",
-    "openai": "^6.33.0"
+    "mongoose": "^7.8.9"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

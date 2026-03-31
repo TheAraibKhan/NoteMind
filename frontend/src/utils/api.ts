@@ -68,6 +68,7 @@ export const authAPI = {
 // Notes API
 export const notesAPI = {
   generate: (topic: string) => api.post("/notes/generate", { topic }),
+  ask: (query: string) => api.post("/notes/ask", { query }),
   getAll: (search?: string) => api.get("/notes", { params: { topic: search } }),
   getById: (id: string) => api.get(`/notes/${id}`),
   delete: (id: string) => api.delete(`/notes/${id}`),

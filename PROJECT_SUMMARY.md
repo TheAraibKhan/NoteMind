@@ -9,6 +9,7 @@ This is a **production-grade, full-stack AI-powered EdTech platform** designed t
 ## 📦 Frontend Application (Next.js + TailwindCSS)
 
 ### Pages Implemented
+
 ```
 ✓ Landing Page (/)
   - Hero section with gradient text
@@ -340,11 +341,11 @@ FLASHCARDS (3 endpoints)
   - getFlashcards() - Fetch user's cards
   - updateFlashcardMastery() - Mark as learned
 
-✓ AI Service (Mock Ready)
+✓ AI Service (Gemini Ready)
   - generateNotesContent() - Structured notes
   - generateQuizQuestions() - 5-10 MCQs
   - generateFlashcards() - Front/back cards
-  - (OpenAI integration commented, ready to enable)
+  - (Gemini integration enabled with fallback)
 ```
 
 ### Middleware & Security
@@ -459,7 +460,7 @@ Backend (.env):
 ├─ NODE_ENV
 ├─ MONGODB_URI
 ├─ JWT_SECRET
-├─ OPENAI_API_KEY
+├─ GEMINI_API_KEY
 └─ CORS_ORIGIN
 ```
 
@@ -908,6 +909,7 @@ npm run dev  # http://localhost:5000
 ### 2. Testing Features
 
 Visit each page and perform actions:
+
 - **Home**: View landing page
 - **Notebook**: Generate notes
 - **Quiz**: Take a test
@@ -981,6 +983,7 @@ This project demonstrates:
 ## 🚀 Ready to Launch!
 
 The entire NoteMind platform is ready for:
+
 - ✅ Development testing
 - ✅ Feature enhancement
 - ✅ Production deployment

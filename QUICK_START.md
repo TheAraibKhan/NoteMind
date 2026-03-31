@@ -20,6 +20,7 @@ cp .env.example .env
 ### Step 2: Start Development Servers
 
 **Terminal 1 - Backend:**
+
 ```bash
 cd backend
 npm run dev
@@ -27,6 +28,7 @@ npm run dev
 ```
 
 **Terminal 2 - Frontend:**
+
 ```bash
 cd frontend
 npm run dev
@@ -42,16 +44,18 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 ## 🔑 Essential Environment Variables
 
 ### Backend (.env)
+
 ```
 PORT=5000
 MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/notemind
 JWT_SECRET=your_secure_key_here
-OPENAI_API_KEY=sk-your-key-here
+GEMINI_API_KEY=AIzaSy...
 NODE_ENV=development
 CORS_ORIGIN=http://localhost:3000
 ```
 
 ### Frontend (.env.local)
+
 ```
 NEXT_PUBLIC_API_URL=http://localhost:5000/api
 ```
@@ -61,30 +65,35 @@ NEXT_PUBLIC_API_URL=http://localhost:5000/api
 ## 📚 Key Features to Try
 
 ### 1. Generate Notes
+
 - Click on home page input
 - Type a topic: "Database Normalization"
 - Click "Generate Notes"
 - See structured study notes
 
 ### 2. Take a Quiz
+
 - Navigate to Quiz page
 - Start quiz
 - Answer 10 questions
 - View your accuracy
 
 ### 3. Flashcard Study
+
 - Go to Flashcards page
 - Click cards to flip
 - Mark as mastered
 - Track progress
 
 ### 4. View Dashboard
+
 - Dashboard shows analytics
 - See weak topics
 - Track learning streak
 - View accuracy charts
 
 ### 5. Save Notes
+
 - All generated notes auto-save
 - Access via Library
 - Search and filter
@@ -97,39 +106,44 @@ NEXT_PUBLIC_API_URL=http://localhost:5000/api
 ### Add a New API Endpoint
 
 **1. Backend - Create Route:**
+
 ```typescript
 // src/routes/example.ts
-import express from 'express';
-import * as controller from '@/controllers/example';
-import { authMiddleware } from '@/middleware/auth';
+import express from "express";
+import * as controller from "@/controllers/example";
+import { authMiddleware } from "@/middleware/auth";
 
 const router = express.Router();
-router.post('/create', authMiddleware, controller.create);
+router.post("/create", authMiddleware, controller.create);
 export default router;
 ```
 
 **2. Add to Server:**
+
 ```typescript
-import exampleRoutes from './routes/example';
-app.use('/api/example', exampleRoutes);
+import exampleRoutes from "./routes/example";
+app.use("/api/example", exampleRoutes);
 ```
 
 **3. Frontend - Use API:**
-```typescript
-import { api } from '@/utils/api';
 
-const { data } = await api.post('/example/create', { data });
+```typescript
+import { api } from "@/utils/api";
+
+const { data } = await api.post("/example/create", { data });
 ```
 
 ### Deploy to Production
 
 **Frontend (Vercel):**
+
 ```bash
 cd frontend
 vercel deploy --prod
 ```
 
 **Backend (Render):**
+
 1. Push to GitHub
 2. Create Web Service on Render
 3. Connect repo
@@ -141,24 +155,30 @@ vercel deploy --prod
 ## 🐛 Troubleshooting
 
 ### MongoDB Connection Error
+
 ```
 Error: connect ECONNREFUSED
 ```
+
 **Solution:** Check MONGODB_URI in .env is correct
 
 ### CORS Error
+
 ```
 Access to XMLHttpRequest blocked by CORS policy
 ```
+
 **Solution:** Ensure CORS_ORIGIN matches frontend URL
 
 ### Port Already in Use
+
 ```bash
 # Kill process on port 5000
 lsof -ti:5000 | xargs kill -9
 ```
 
 ### Token Expired
+
 Log in again to get a new token
 
 ---

@@ -50,7 +50,7 @@ NODE_ENV=development
 PORT=5000
 MONGODB_URI=mongodb://localhost:27017/notemind
 JWT_SECRET=your-secret-key-change-in-production
-OPENAI_API_KEY=sk-your-key-here
+GEMINI_API_KEY=AIzaSy...
 CORS_ORIGIN=http://localhost:3000
 EOF
     echo -e "${GREEN}✓ Created backend/.env (please update with real values)${NC}"
