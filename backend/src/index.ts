@@ -12,8 +12,7 @@ import flashcardRoutes from "./routes/flashcards";
 import { rateLimitMiddleware } from "./middleware/rateLimit";
 import { paginate } from "./middleware/validation";
 import { analyticsMiddleware, getAnalytics } from "./middleware/analytics";
-import { aiServiceHealthCheck } from "./middleware/aiHealthCheck";
-import aiService, { getAIServiceHealth } from "./services/aiService";
+import { getAIServiceHealth } from "./services/aiService";
 import { cachingService } from "./services/cachingService";
 import { logger } from "./utils/logger";
 
@@ -153,15 +152,6 @@ app.get("/api/admin/analytics", (_req, res) => {
   res.json(getAnalytics());
 });
 
-// AI Service Diagnostics endpoint — shows Groq + Wikipedia status
-app.get("/api/admin/ai-diagnostics", aiServiceHealthCheck);
-
-// Admin: reset AI circuit breaker (dev/debug)
-app.post("/api/admin/ai-reset", (_req, res) => {
-  aiService.resetCircuitBreaker();
-  res.json({ success: true, message: "AI circuit breaker reset" });
-});
-
 // ============================================================================
 // ROUTES
 // ============================================================================
@@ -259,9 +249,9 @@ const logStartupBanner = () => {
   console.log(`  Env:     ${process.env.NODE_ENV || "development"}`);
   console.log(`  DB:      ${dbStatus}`);
   console.log(
-    `  Groq:    ${process.env.GROQ_API_KEY ? "configured" : "not configured"}`,
+    `  Gemini:  ${process.env.GEMINI_API_KEY ? "configured" : "not configured"}`,
   );
-  console.log(`  Model:   ${process.env.GROQ_MODEL || "mixtral-8x7b-32768"}`);
+  console.log(`  Model:   ${process.env.GEMINI_MODEL || "gemini-2.0-flash"}`);
   console.log("========================================\n");
 };
 
