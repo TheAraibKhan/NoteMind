@@ -4,12 +4,13 @@
   "description": "AI-powered active learning platform - Backend API",
   "main": "src/index.ts",
   "scripts": {
-    "dev": "ts-node src/index.ts",
+    "dev": "ts-node -r tsconfig-paths/register src/index.ts",
     "build": "tsc",
-    "start": "node -r module-alias/register dist/index.js",
+    "start": "node -r tsconfig-paths/register dist/index.js",
     "lint": "eslint src/"
   },
   "dependencies": {
+    "@types/node": "^20.19.37",
     "axios": "^1.6.0",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.6",
@@ -18,14 +19,9 @@
     "express-validator": "^7.0.0",
     "helmet": "^7.2.0",
     "jsonwebtoken": "^9.0.3",
-    "@types/node": "^20.19.37",
-    "module-alias": "^2.3.4",
     "mongodb": "^7.1.0",
     "mongoose": "^7.8.9",
     "openai": "^6.33.0"
-  },
-  "_moduleAliases": {
-    "@": "dist"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
