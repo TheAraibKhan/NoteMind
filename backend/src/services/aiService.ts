@@ -1,5 +1,5 @@
 /**
- * Production-Level AI Service for NoteMind — Google Gemini
+ * Production-Level AI Service for NoteMind — Groq API
  *
  * Architecture:
  * ┌──────────────────────────────────────────────────────────┐
@@ -12,7 +12,7 @@
  * │      ↓ (miss)                                            │
  * │  Circuit Breaker Check                                   │
  * │      ↓ (closed/half-open)                                │
- * │  Gemini Call with Retry + Timeout                        │
+ * │  Groq Call with Retry + Timeout                          │
  * │      ↓                                                   │
  * │  Response Validation Layer                               │
  * │      ↓                                                   │
@@ -22,16 +22,16 @@
  * └──────────────────────────────────────────────────────────┘
  *
  * Key features:
- * - Google Gemini API (gemini-2.0-flash) for fast, free-tier AI
+ * - Groq API (mixtral-8x7b-32768) for fast, free-tier AI
  * - Circuit breaker prevents cascading failures
  * - Exponential backoff retry for transient errors
  * - Response validation catches hallucinations and weak content
- * - Wikipedia fallback for notes when Gemini is unavailable
+ * - Wikipedia fallback for notes when Groq is unavailable
  * - Every error path returns a clean, user-friendly message
  * - Zero unhandled exceptions — every code path is wrapped
  */
 
-import { GoogleGenerativeAI, GenerativeModel } from "@google/generative-ai";
+import Groq from "groq-sdk";
 import {
   AI_PROMPTS,
   ERROR_MESSAGES,
@@ -44,6 +44,12 @@ import { inputValidationService } from "@/services/validationService";
 import { intentDetectionService } from "@/services/intentDetectionService";
 import { responseValidationService } from "@/services/responseValidationService";
 import { cachingService } from "@/services/cachingService";
+import {
+  raceWithTimeout,
+  selectBestResult,
+  logHybridOperation,
+  handleHybridFallback,
+} from "@/services/hybridAiService";
 
 // ============================================================================
 // INTERFACES
@@ -97,25 +103,95 @@ interface WikipediaExtractResponse {
   };
 }
 
+interface HybridResult<T> {
+  primary?: {
+    data: T;
+    source: "groq" | "wikipedia";
+    quality: "high" | "medium" | "low";
+  };
+  secondary?: {
+    data: T;
+    source: "groq" | "wikipedia";
+    quality: "high" | "medium" | "low";
+  };
+  merged?: T; // Combined/optimized result
+  timestamp: number;
+}
+
 // ============================================================================
 // CONFIGURATION
 // ============================================================================
 
-const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.0-flash";
-const GEMINI_API_TIMEOUT = 30_000; // 30 seconds
+const GROQ_MODEL = process.env.GROQ_MODEL || "mixtral-8x7b-32768";
+const GROQ_API_TIMEOUT = 30_000; // 30 seconds
+const WIKIPEDIA_API_TIMEOUT = 15_000; // 15 seconds (faster)
 const WIKIPEDIA_API_URL =
   process.env.FREE_NOTES_API_URL || "https://en.wikipedia.org/w/api.php";
 const USE_FREE_API_ONLY = process.env.USE_FREE_API_ONLY === "true";
+const USE_HYBRID_MODE = process.env.USE_HYBRID_MODE !== "false"; // Default: enabled
 const ENABLE_CACHE = process.env.CACHE_ENABLED !== "false";
+const HYBRID_TIMEOUT = 25_000; // Total timeout for hybrid operations
+const PRIORITIZE_QUALITY = process.env.PRIORITIZE_QUALITY === "true"; // True = wait for best result, False = return first result
 
 // Stop words filtered out when comparing query relevance to Wikipedia results
 const STOP_WORDS = new Set([
-  "what", "is", "my", "the", "a", "an", "of", "in", "on", "at", "to", "for",
-  "and", "or", "but", "not", "are", "was", "were", "be", "been", "being",
-  "have", "has", "had", "do", "does", "did", "will", "would", "could",
-  "should", "may", "might", "can", "how", "why", "when", "where", "who",
-  "this", "that", "these", "those", "it", "its", "with", "from", "by",
-  "about", "tell", "me", "give", "know", "your", "you", "am",
+  "what",
+  "is",
+  "my",
+  "the",
+  "a",
+  "an",
+  "of",
+  "in",
+  "on",
+  "at",
+  "to",
+  "for",
+  "and",
+  "or",
+  "but",
+  "not",
+  "are",
+  "was",
+  "were",
+  "be",
+  "been",
+  "being",
+  "have",
+  "has",
+  "had",
+  "do",
+  "does",
+  "did",
+  "will",
+  "would",
+  "could",
+  "should",
+  "may",
+  "might",
+  "can",
+  "how",
+  "why",
+  "when",
+  "where",
+  "who",
+  "this",
+  "that",
+  "these",
+  "those",
+  "it",
+  "its",
+  "with",
+  "from",
+  "by",
+  "about",
+  "tell",
+  "me",
+  "give",
+  "know",
+  "your",
+  "you",
+  "am",
 ]);
 
 // ============================================================================
@@ -123,8 +199,8 @@ const STOP_WORDS = new Set([
 // ============================================================================
 
 enum CircuitState {
-  CLOSED = "CLOSED",       // Normal operation
-  OPEN = "OPEN",           // Failing — block all calls
+  CLOSED = "CLOSED", // Normal operation
+  OPEN = "OPEN", // Failing — block all calls
   HALF_OPEN = "HALF_OPEN", // Testing recovery
 }
 
@@ -144,7 +220,10 @@ class CircuitBreaker {
       if (elapsed >= CIRCUIT_BREAKER_CONFIG.RECOVERY_TIMEOUT_MS) {
         this.state = CircuitState.HALF_OPEN;
         this.halfOpenCalls = 0;
-        logger.info("CircuitBreaker", "Transitioning to HALF_OPEN — testing recovery");
+        logger.info(
+          "CircuitBreaker",
+          "Transitioning to HALF_OPEN — testing recovery",
+        );
         return true;
       }
       return false;
@@ -178,10 +257,15 @@ class CircuitBreaker {
       });
     } else if (this.failureCount >= CIRCUIT_BREAKER_CONFIG.FAILURE_THRESHOLD) {
       this.state = CircuitState.OPEN;
-      logger.error("CircuitBreaker", "Failure threshold reached — circuit OPEN", error, {
-        failureCount: this.failureCount,
-        recoveryIn: `${CIRCUIT_BREAKER_CONFIG.RECOVERY_TIMEOUT_MS / 1000}s`,
-      });
+      logger.error(
+        "CircuitBreaker",
+        "Failure threshold reached — circuit OPEN",
+        error,
+        {
+          failureCount: this.failureCount,
+          recoveryIn: `${CIRCUIT_BREAKER_CONFIG.RECOVERY_TIMEOUT_MS / 1000}s`,
+        },
+      );
     }
   }
 
@@ -200,31 +284,45 @@ class CircuitBreaker {
 const circuitBreaker = new CircuitBreaker();
 
 // ============================================================================
-// GEMINI CLIENT MANAGEMENT
+// GROQ CLIENT MANAGEMENT
 // ============================================================================
 
-let cachedClient: GoogleGenerativeAI | null = null;
-let cachedModel: GenerativeModel | null = null;
+let cachedClient: Groq | null = null;
+let lastGroqError: { message: string; at: string } | null = null;
 
-const getModel = (): GenerativeModel | null => {
-  if (!process.env.GEMINI_API_KEY || USE_FREE_API_ONLY) {
+// Alias for backward compatibility — getModel() checks used in notes/quiz/flashcard/question flows
+const getModel = (): Groq | null => getGroqClient();
+
+const getGroqClient = (): Groq | null => {
+  if (!process.env.GROQ_API_KEY || USE_FREE_API_ONLY) {
     return null;
   }
 
   if (!circuitBreaker.isAvailable()) {
-    logger.debug("AIService", "Circuit breaker is OPEN — skipping Gemini");
+    logger.debug("AIService", "Circuit breaker is OPEN — skipping Groq");
     return null;
   }
 
-  // Reuse client + model instance
-  if (!cachedModel) {
-    cachedClient = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    cachedModel = cachedClient.getGenerativeModel({
-      model: GEMINI_MODEL,
+  // Reuse client instance
+  if (!cachedClient) {
+    cachedClient = new Groq({
+      apiKey: process.env.GROQ_API_KEY,
     });
   }
 
-  return cachedModel;
+  return cachedClient;
+};
+
+const isGroqAvailable = (): boolean => {
+  return (
+    !!process.env.GROQ_API_KEY &&
+    !USE_FREE_API_ONLY &&
+    circuitBreaker.isAvailable()
+  );
+};
+
+const isWikipediaAvailable = (): boolean => {
+  return !!WIKIPEDIA_API_URL;
 };
 
 // ============================================================================
@@ -241,33 +339,50 @@ async function withRetry<T>(
     try {
       const result = await operation();
       if (attempt > 0) {
-        logger.info("AIService", `${operationName} succeeded on retry ${attempt}`, {
-          totalAttempts: attempt + 1,
-        });
+        logger.info(
+          "AIService",
+          `${operationName} succeeded on retry ${attempt}`,
+          {
+            totalAttempts: attempt + 1,
+          },
+        );
       }
       circuitBreaker.recordSuccess();
       return result;
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
+      lastGroqError = {
+        message: lastError.message,
+        at: new Date().toISOString(),
+      };
 
       // Don't retry on non-transient errors
       if (isNonRetryableError(lastError)) {
-        logger.warn("AIService", `${operationName} failed with non-retryable error`, {
-          error: lastError.message,
-          attempt,
-        });
+        logger.warn(
+          "AIService",
+          `${operationName} failed with non-retryable error`,
+          {
+            error: lastError.message,
+            attempt,
+          },
+        );
         circuitBreaker.recordFailure(lastError);
         throw lastError;
       }
 
       if (attempt < RETRY_CONFIG.MAX_RETRIES) {
         const delay = Math.min(
-          RETRY_CONFIG.BASE_DELAY_MS * Math.pow(RETRY_CONFIG.BACKOFF_MULTIPLIER, attempt),
+          RETRY_CONFIG.BASE_DELAY_MS *
+            Math.pow(RETRY_CONFIG.BACKOFF_MULTIPLIER, attempt),
           RETRY_CONFIG.MAX_DELAY_MS,
         );
-        logger.warn("AIService", `${operationName} attempt ${attempt + 1} failed, retrying in ${delay}ms`, {
-          error: lastError.message,
-        });
+        logger.warn(
+          "AIService",
+          `${operationName} attempt ${attempt + 1} failed, retrying in ${delay}ms`,
+          {
+            error: lastError.message,
+          },
+        );
         await sleep(delay);
       }
     }
@@ -339,7 +454,7 @@ function extractJSON(text: string): string {
 }
 
 // ============================================================================
-// CORE: STRUCTURED RESPONSE GENERATION (GEMINI)
+// CORE: STRUCTURED RESPONSE GENERATION (GROQ)
 // ============================================================================
 
 async function createStructuredResponse<T>(
@@ -348,31 +463,30 @@ async function createStructuredResponse<T>(
   userPrompt: string,
   topic: string,
 ): Promise<T> {
-  const model = getModel();
+  const client = getGroqClient();
 
-  if (!model) {
-    throw new Error("GEMINI_UNAVAILABLE");
+  if (!client) {
+    throw new Error("GROQ_UNAVAILABLE");
   }
 
-  const timer = logger.startTimer("AIService", `Gemini ${name}`);
+  const timer = logger.startTimer("AIService", `Groq ${name}`);
 
   const fullPrompt = `${systemPrompt}\n\n---\n\nUSER REQUEST:\n${userPrompt}`;
 
   const response = await withRetry(async () => {
-    const result = await model.generateContent({
-      contents: [{ role: "user", parts: [{ text: fullPrompt }] }],
-      generationConfig: {
-        temperature: 0.7,
-        maxOutputTokens: 2500,
-      },
+    const result = await client.chat.completions.create({
+      messages: [{ role: "user", content: fullPrompt }],
+      model: GROQ_MODEL,
+      temperature: 0.7,
+      max_tokens: 2500,
     });
 
     return result;
   }, `createStructuredResponse:${name}`);
 
-  const content = response.response.text();
+  const content = response.choices[0]?.message?.content;
   if (!content) {
-    throw new Error("Empty response from Gemini");
+    throw new Error("Empty response from Groq");
   }
 
   timer.done({ topic: topic.slice(0, 50), responseLength: content.length });
@@ -383,9 +497,14 @@ async function createStructuredResponse<T>(
     const jsonString = extractJSON(content);
     parsed = JSON.parse(jsonString) as T;
   } catch (parseError) {
-    logger.error("AIService", "Failed to parse Gemini response as JSON", parseError as Error, {
-      rawResponse: content.slice(0, 300),
-    });
+    logger.error(
+      "AIService",
+      "Failed to parse Groq response as JSON",
+      parseError as Error,
+      {
+        rawResponse: content.slice(0, 300),
+      },
+    );
     throw new Error("Invalid JSON response from AI");
   }
 
@@ -406,7 +525,9 @@ async function fetchWikipediaNotes(topic: string): Promise<NotesContent> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10_000);
 
-    const searchResponse = await fetch(searchUrl, { signal: controller.signal });
+    const searchResponse = await fetch(searchUrl, {
+      signal: controller.signal,
+    });
     clearTimeout(timeout);
 
     if (!searchResponse.ok) {
@@ -425,7 +546,10 @@ async function fetchWikipediaNotes(topic: string): Promise<NotesContent> {
       normalized.split(/\s+/).filter((w) => w.length > 2 && !STOP_WORDS.has(w)),
     );
     const titleWords = new Set(
-      bestMatch.title.toLowerCase().split(/\s+/).filter((w) => w.length > 2 && !STOP_WORDS.has(w)),
+      bestMatch.title
+        .toLowerCase()
+        .split(/\s+/)
+        .filter((w) => w.length > 2 && !STOP_WORDS.has(w)),
     );
 
     const overlap = [...queryWords].filter((w) => titleWords.has(w)).length;
@@ -446,14 +570,17 @@ async function fetchWikipediaNotes(topic: string): Promise<NotesContent> {
     const controller2 = new AbortController();
     const timeout2 = setTimeout(() => controller2.abort(), 10_000);
 
-    const extractResponse = await fetch(extractUrl, { signal: controller2.signal });
+    const extractResponse = await fetch(extractUrl, {
+      signal: controller2.signal,
+    });
     clearTimeout(timeout2);
 
     if (!extractResponse.ok) {
       throw new Error(`Wikipedia extract failed: ${extractResponse.status}`);
     }
 
-    const extractData = (await extractResponse.json()) as WikipediaExtractResponse;
+    const extractData =
+      (await extractResponse.json()) as WikipediaExtractResponse;
     const page = Object.values(extractData.query?.pages || {})[0];
     const extract = cleanSnippet(page?.extract || "");
     const sentences = splitIntoSentences(extract);
@@ -462,9 +589,18 @@ async function fetchWikipediaNotes(topic: string): Promise<NotesContent> {
       truncate(sentences[0] || cleanSnippet(bestMatch.snippet || ""), 300) ||
       `${bestMatch.title} is a topic worth studying.`;
 
-    const keyConcepts = sentences.slice(1, 5).map((s) => truncate(s, 200)).filter(Boolean);
-    const importantPoints = sentences.slice(5, 9).map((s) => truncate(s, 200)).filter(Boolean);
-    const examples = sentences.slice(9, 12).map((s) => truncate(s, 200)).filter(Boolean);
+    const keyConcepts = sentences
+      .slice(1, 5)
+      .map((s) => truncate(s, 200))
+      .filter(Boolean);
+    const importantPoints = sentences
+      .slice(5, 9)
+      .map((s) => truncate(s, 200))
+      .filter(Boolean);
+    const examples = sentences
+      .slice(9, 12)
+      .map((s) => truncate(s, 200))
+      .filter(Boolean);
 
     return {
       title: bestMatch.title,
@@ -545,7 +681,9 @@ export async function generateNotesContent(
     if (ENABLE_CACHE) {
       const cached = cachingService.get<NotesContent>(normalized, "notes");
       if (cached) {
-        logger.debug("AIService", "Returning cached notes", { topic: normalized.slice(0, 50) });
+        logger.debug("AIService", "Returning cached notes", {
+          topic: normalized.slice(0, 50),
+        });
         return { success: true, data: cached, cached: true };
       }
     }
@@ -553,13 +691,16 @@ export async function generateNotesContent(
     const model = getModel();
 
     if (!model) {
-      logger.info("AIService", "Gemini unavailable, using Wikipedia fallback for notes");
+      logger.info(
+        "AIService",
+        "Groq unavailable, using Wikipedia fallback for notes",
+      );
       const notes = await fetchWikipediaNotes(normalized);
       cachingService.set(normalized, notes, "notes");
       return { success: true, data: notes };
     }
 
-    // Generate with Gemini
+    // Generate with Groq
     const notes = await createStructuredResponse<NotesContent>(
       "study_notes",
       `${AI_PROMPTS.BASE_SYSTEM}\n\n${AI_PROMPTS.STUDY_NOTES}`,
@@ -570,9 +711,13 @@ export async function generateNotesContent(
     // Validate structure
     const validation = responseValidationService.validateStructure(notes);
     if (!validation.isValid) {
-      logger.warn("AIService", "Generated notes failed validation, falling back to Wikipedia", {
-        issues: validation.issues,
-      });
+      logger.warn(
+        "AIService",
+        "Generated notes failed validation, falling back to Wikipedia",
+        {
+          issues: validation.issues,
+        },
+      );
       const fallback = await fetchWikipediaNotes(normalized);
       cachingService.set(normalized, fallback, "notes");
       return { success: true, data: fallback };
@@ -586,7 +731,9 @@ export async function generateNotesContent(
     cachingService.set(normalized, notes, "notes");
     return { success: true, data: notes };
   } catch (error) {
-    logger.error("AIService", "Notes generation failed", error as Error, { topic });
+    logger.error("AIService", "Notes generation failed", error as Error, {
+      topic,
+    });
 
     // Fallback to Wikipedia on ANY error
     try {
@@ -617,7 +764,9 @@ export async function generateQuizQuestions(
     if (ENABLE_CACHE) {
       const cached = cachingService.get<QuizQuestion[]>(normalized, "quiz");
       if (cached) {
-        logger.debug("AIService", "Returning cached quiz", { topic: normalized.slice(0, 50) });
+        logger.debug("AIService", "Returning cached quiz", {
+          topic: normalized.slice(0, 50),
+        });
         return { success: true, data: cached, cached: true };
       }
     }
@@ -626,11 +775,14 @@ export async function generateQuizQuestions(
     if (!model) {
       return {
         success: false,
-        error: "Quiz generation requires our AI service, which is temporarily unavailable. Please try again shortly, or generate study notes instead.",
+        error:
+          "Quiz generation requires our AI service, which is temporarily unavailable. Please try again shortly, or generate study notes instead.",
       };
     }
 
-    const response = await createStructuredResponse<{ questions: QuizQuestion[] }>(
+    const response = await createStructuredResponse<{
+      questions: QuizQuestion[];
+    }>(
       "quiz_questions",
       `${AI_PROMPTS.BASE_SYSTEM}\n\n${AI_PROMPTS.QUIZ_QUESTIONS}`,
       `Create 5 multiple-choice quiz questions on "${topic}" that test genuine understanding.\n\nReturn ONLY valid JSON with a "questions" array. No additional text.`,
@@ -640,7 +792,9 @@ export async function generateQuizQuestions(
     const questions = response.questions;
 
     if (!questions || !Array.isArray(questions) || questions.length === 0) {
-      logger.warn("AIService", "Quiz response missing questions array", { topic });
+      logger.warn("AIService", "Quiz response missing questions array", {
+        topic,
+      });
       return { success: false, error: ERROR_MESSAGES.WEAK_RESPONSE };
     }
 
@@ -652,10 +806,14 @@ export async function generateQuizQuestions(
         q.correctAnswer < 0 ||
         q.correctAnswer > 3
       ) {
-        logger.warn("AIService", "Skipping question with invalid correctAnswer", {
-          question: q.question?.slice(0, 50),
-          correctAnswer: q.correctAnswer,
-        });
+        logger.warn(
+          "AIService",
+          "Skipping question with invalid correctAnswer",
+          {
+            question: q.question?.slice(0, 50),
+            correctAnswer: q.correctAnswer,
+          },
+        );
         continue;
       }
 
@@ -685,7 +843,9 @@ export async function generateQuizQuestions(
     cachingService.set(normalized, validQuestions, "quiz");
     return { success: true, data: validQuestions };
   } catch (error) {
-    logger.error("AIService", "Quiz generation failed", error as Error, { topic });
+    logger.error("AIService", "Quiz generation failed", error as Error, {
+      topic,
+    });
     return { success: false, error: ERROR_MESSAGES.AI_UNAVAILABLE };
   }
 }
@@ -706,9 +866,14 @@ export async function generateFlashcards(
 
     // Cache check
     if (ENABLE_CACHE) {
-      const cached = cachingService.get<FlashcardContent[]>(normalized, "flashcards");
+      const cached = cachingService.get<FlashcardContent[]>(
+        normalized,
+        "flashcards",
+      );
       if (cached) {
-        logger.debug("AIService", "Returning cached flashcards", { topic: normalized.slice(0, 50) });
+        logger.debug("AIService", "Returning cached flashcards", {
+          topic: normalized.slice(0, 50),
+        });
         return { success: true, data: cached, cached: true };
       }
     }
@@ -717,11 +882,14 @@ export async function generateFlashcards(
     if (!model) {
       return {
         success: false,
-        error: "Flashcard generation requires our AI service, which is temporarily unavailable. Please try again shortly, or generate study notes instead.",
+        error:
+          "Flashcard generation requires our AI service, which is temporarily unavailable. Please try again shortly, or generate study notes instead.",
       };
     }
 
-    const response = await createStructuredResponse<{ cards: FlashcardContent[] }>(
+    const response = await createStructuredResponse<{
+      cards: FlashcardContent[];
+    }>(
       "flashcards",
       `${AI_PROMPTS.BASE_SYSTEM}\n\n${AI_PROMPTS.FLASHCARDS}`,
       `Create effective revision flashcards for "${topic}".\n\nReturn ONLY valid JSON with a "cards" array. No additional text.`,
@@ -731,7 +899,9 @@ export async function generateFlashcards(
     const cards = response.cards;
 
     if (!cards || !Array.isArray(cards) || cards.length === 0) {
-      logger.warn("AIService", "Flashcard response missing cards array", { topic });
+      logger.warn("AIService", "Flashcard response missing cards array", {
+        topic,
+      });
       return { success: false, error: ERROR_MESSAGES.WEAK_RESPONSE };
     }
 
@@ -757,7 +927,9 @@ export async function generateFlashcards(
     cachingService.set(normalized, validCards, "flashcards");
     return { success: true, data: validCards };
   } catch (error) {
-    logger.error("AIService", "Flashcard generation failed", error as Error, { topic });
+    logger.error("AIService", "Flashcard generation failed", error as Error, {
+      topic,
+    });
     return { success: false, error: ERROR_MESSAGES.AI_UNAVAILABLE };
   }
 }
@@ -798,7 +970,10 @@ export async function answerStudyQuestion(
     // ---- Step 3: Cache check ----
     const cachePrefix = `query:${intent.intent}`;
     if (ENABLE_CACHE) {
-      const cached = cachingService.get<GeneralResponse>(normalized, cachePrefix);
+      const cached = cachingService.get<GeneralResponse>(
+        normalized,
+        cachePrefix,
+      );
       if (cached) {
         logger.debug("AIService", "Returning cached answer", {
           topic: normalized.slice(0, 50),
@@ -807,37 +982,41 @@ export async function answerStudyQuestion(
       }
     }
 
-    // ---- Step 4: Check Gemini availability ----
-    const model = getModel();
-    if (!model) {
-      logger.warn("AIService", "Gemini unavailable for question answering");
+    // ---- Step 4: Check Groq availability ----
+    const client = getGroqClient();
+    if (!client) {
+      logger.warn("AIService", "Groq unavailable for question answering");
       return {
         success: false,
         error: ERROR_MESSAGES.AI_UNAVAILABLE,
       };
     }
 
-    // ---- Step 5: Call Gemini with retry ----
-    const intentContext = intentDetectionService.getIntentContext(intent.intent);
-    const timer = logger.startTimer("AIService", "Gemini question-answer");
+    // ---- Step 5: Call Groq with retry ----
+    const intentContext = intentDetectionService.getIntentContext(
+      intent.intent,
+    );
+    const timer = logger.startTimer("AIService", "Groq question-answer");
 
     const fullPrompt = `${AI_PROMPTS.BASE_SYSTEM}\n\n${intentContext}\n\n---\n\nUSER QUESTION:\n${sanitized}`;
 
     const response = await withRetry(async () => {
-      return await model.generateContent({
-        contents: [{ role: "user", parts: [{ text: fullPrompt }] }],
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 2000,
-        },
+      return await client.chat.completions.create({
+        messages: [{ role: "user", content: fullPrompt }],
+        model: GROQ_MODEL,
+        temperature: 0.7,
+        max_tokens: 2000,
       });
     }, "answerStudyQuestion");
 
-    const content = response.response.text();
-    timer.done({ queryLength: sanitized.length, responseLength: content?.length ?? 0 });
+    const content = response.choices[0]?.message?.content || "";
+    timer.done({
+      queryLength: sanitized.length,
+      responseLength: content?.length ?? 0,
+    });
 
     if (!content || content.trim().length === 0) {
-      logger.error("AIService", "Empty response from Gemini for question");
+      logger.error("AIService", "Empty response from Groq for question");
       return { success: false, error: ERROR_MESSAGES.WEAK_RESPONSE };
     }
 
@@ -885,12 +1064,9 @@ export async function answerStudyQuestion(
 
     return { success: true, data: structured };
   } catch (error) {
-    logger.error(
-      "AIService",
-      "Question answering failed",
-      error as Error,
-      { query: inputValidationService.sanitizeForLogging(query) },
-    );
+    logger.error("AIService", "Question answering failed", error as Error, {
+      query: inputValidationService.sanitizeForLogging(query),
+    });
 
     return {
       success: false,
@@ -905,12 +1081,13 @@ export async function answerStudyQuestion(
 
 export function getAIServiceHealth(): Record<string, unknown> {
   return {
-    provider: "Google Gemini",
-    geminiConfigured: !!process.env.GEMINI_API_KEY,
-    model: GEMINI_MODEL,
+    provider: "Groq",
+    groqConfigured: !!process.env.GROQ_API_KEY,
+    model: GROQ_MODEL,
     freeApiOnly: USE_FREE_API_ONLY,
     cacheEnabled: ENABLE_CACHE,
     circuitBreaker: circuitBreaker.getState(),
+    lastGroqError,
     cacheStats: cachingService.getStats() as unknown as Record<string, unknown>,
   };
 }
@@ -926,8 +1103,12 @@ export const aiService = {
   answerStudyQuestion,
   getHealth: getAIServiceHealth,
   clearCache: () => cachingService.clear(),
-  getCacheStats: () => cachingService.getStats() as unknown as Record<string, unknown>,
-  resetCircuitBreaker: () => circuitBreaker.reset(),
+  getCacheStats: () =>
+    cachingService.getStats() as unknown as Record<string, unknown>,
+  resetCircuitBreaker: () => {
+    lastGroqError = null;
+    circuitBreaker.reset();
+  },
 };
 
 export default aiService;
