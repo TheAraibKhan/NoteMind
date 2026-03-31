@@ -1,22 +1,22 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
-import Head from 'next/head';
-import Link from 'next/link';
-import { useRouter } from 'next/router';
-import toast from 'react-hot-toast';
-import PageLayout from '@/components/PageLayout';
-import GlassCard from '@/components/GlassCard';
-import GradientButton from '@/components/GradientButton';
-import { authAPI, flashcardsAPI, notesAPI, progressAPI } from '@/utils/api';
+import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
+import Head from "next/head";
+import Link from "next/link";
+import { useRouter } from "next/router";
+import toast from "react-hot-toast";
+import PageLayout from "@/components/PageLayout";
+import GlassCard from "@/components/GlassCard";
+import GradientButton from "@/components/GradientButton";
+import { authAPI, flashcardsAPI, notesAPI, progressAPI } from "@/utils/api";
 
 const settingsSections = [
-  { id: 'profile', label: 'Profile Overview', icon: '👤' },
-  { id: 'learning', label: 'Learning Setup', icon: '📚' },
-  { id: 'notifications', label: 'Notifications', icon: '🔔' },
-  { id: 'privacy', label: 'Privacy', icon: '🔒' },
-  { id: 'workspace', label: 'Workspace', icon: '🧭' },
+  { id: "profile", label: "Profile Overview", icon: "👤" },
+  { id: "learning", label: "Learning Setup", icon: "📚" },
+  { id: "notifications", label: "Notifications", icon: "🔔" },
+  { id: "privacy", label: "Privacy", icon: "🔒" },
+  { id: "workspace", label: "Workspace", icon: "🧭" },
 ] as const;
 
 interface UserProfile {
@@ -37,7 +37,7 @@ interface ProgressResponse {
 export default function SettingsPage() {
   const router = useRouter();
   const [activeSection, setActiveSection] =
-    useState<(typeof settingsSections)[number]['id']>('profile');
+    useState<(typeof settingsSections)[number]["id"]>("profile");
   const [saving, setSaving] = useState(false);
   const [user, setUser] = useState<UserProfile | null>(null);
   const [stats, setStats] = useState({
@@ -48,14 +48,14 @@ export default function SettingsPage() {
   });
 
   const [profile, setProfile] = useState({
-    name: '',
-    email: '',
-    bio: 'Turning searches into notes, quizzes, and flashcards.',
+    name: "",
+    email: "",
+    bio: "Turning searches into notes, quizzes, and flashcards.",
   });
   const [learning, setLearning] = useState({
     dailyGoal: 30,
-    focus: 'balanced',
-    reminders: 'evening',
+    focus: "balanced",
+    reminders: "evening",
   });
   const [notifications, setNotifications] = useState({
     dailyReminders: true,
@@ -70,18 +70,22 @@ export default function SettingsPage() {
   useEffect(() => {
     const loadSettingsData = async () => {
       try {
-        const [userResponse, progressResponse, notesResponse, flashcardsResponse] =
-          await Promise.all([
-            authAPI.verify(),
-            progressAPI.getAll(),
-            notesAPI.getAll(),
-            flashcardsAPI.getAll(),
-          ]);
+        const [
+          userResponse,
+          progressResponse,
+          notesResponse,
+          flashcardsResponse,
+        ] = await Promise.all([
+          authAPI.verify(),
+          progressAPI.getAll(),
+          notesAPI.getAll(),
+          flashcardsAPI.getAll(),
+        ]);
 
         const profileData = userResponse.data as UserProfile;
         const progressData = progressResponse.data as ProgressResponse;
-        const notes = notesResponse.data as unknown[];
-        const flashcards = flashcardsResponse.data as unknown[];
+        const notes = (notesResponse.data as any).data as unknown[];
+        const flashcards = (flashcardsResponse.data as any).data as unknown[];
 
         setUser(profileData);
         setProfile((current) => ({
@@ -98,7 +102,7 @@ export default function SettingsPage() {
           ),
         });
       } catch (error) {
-        toast.error('Unable to load your profile settings right now.');
+        toast.error("Unable to load your profile settings right now.");
       }
     };
 
@@ -109,15 +113,15 @@ export default function SettingsPage() {
     setSaving(true);
     setTimeout(() => {
       setSaving(false);
-      toast.success('Profile preferences saved locally.');
+      toast.success("Profile preferences saved locally.");
     }, 600);
   };
 
   const handleLogout = async () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    toast.success('Logged out');
-    void router.push('/login');
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    toast.success("Logged out");
+    void router.push("/login");
   };
 
   return (
@@ -154,11 +158,11 @@ export default function SettingsPage() {
                   </p>
                   <div className="mt-4 flex items-center gap-4">
                     <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-accent-purple/20 to-accent-pink/20 text-3xl">
-                      {user?.name?.charAt(0).toUpperCase() || 'N'}
+                      {user?.name?.charAt(0).toUpperCase() || "N"}
                     </div>
                     <div>
                       <h2 className="text-xl font-playfair font-bold text-white">
-                        {profile.name || 'Learner'}
+                        {profile.name || "Learner"}
                       </h2>
                       <p className="text-sm text-white/45">{profile.email}</p>
                     </div>
@@ -192,11 +196,11 @@ export default function SettingsPage() {
                   </p>
                   <div className="space-y-2">
                     {[
-                      { href: '/notebook', label: 'Notebook', icon: '📝' },
-                      { href: '/quiz', label: 'Quiz', icon: '🎯' },
-                      { href: '/flashcards', label: 'Flashcards', icon: '🗂' },
-                      { href: '/library', label: 'Library', icon: '📚' },
-                      { href: '/dashboard', label: 'Dashboard', icon: '📈' },
+                      { href: "/notebook", label: "Notebook", icon: "📝" },
+                      { href: "/quiz", label: "Quiz", icon: "🎯" },
+                      { href: "/flashcards", label: "Flashcards", icon: "🗂" },
+                      { href: "/library", label: "Library", icon: "📚" },
+                      { href: "/dashboard", label: "Dashboard", icon: "📈" },
                     ].map((service) => (
                       <Link href={service.href} key={service.href}>
                         <div className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm text-white/65 transition-all hover:bg-white/[0.03] hover:text-white/85">
@@ -215,8 +219,8 @@ export default function SettingsPage() {
                       onClick={() => setActiveSection(section.id)}
                       className={`w-full rounded-xl px-4 py-3 text-left font-inter text-sm transition-all ${
                         activeSection === section.id
-                          ? 'border border-accent-purple/30 bg-gradient-to-r from-accent-purple/15 to-accent-pink/10 text-white'
-                          : 'text-white/55 hover:bg-white/[0.02] hover:text-white/80'
+                          ? "border border-accent-purple/30 bg-gradient-to-r from-accent-purple/15 to-accent-pink/10 text-white"
+                          : "text-white/55 hover:bg-white/[0.02] hover:text-white/80"
                       }`}
                     >
                       <span className="mr-2">{section.icon}</span>
@@ -227,7 +231,7 @@ export default function SettingsPage() {
               </div>
 
               <div className="space-y-6">
-                {activeSection === 'profile' && (
+                {activeSection === "profile" && (
                   <GlassCard className="p-8">
                     <h2 className="mb-6 text-2xl font-playfair font-bold text-white">
                       Personal Details
@@ -291,7 +295,7 @@ export default function SettingsPage() {
                   </GlassCard>
                 )}
 
-                {activeSection === 'learning' && (
+                {activeSection === "learning" && (
                   <GlassCard className="p-8">
                     <h2 className="mb-6 text-2xl font-playfair font-bold text-white">
                       Learning Setup
@@ -324,40 +328,45 @@ export default function SettingsPage() {
                           Study Style
                         </label>
                         <div className="grid grid-cols-3 gap-3">
-                          {['balanced', 'quiz-first', 'review-first'].map((option) => (
-                            <button
-                              key={option}
-                              onClick={() =>
-                                setLearning((current) => ({
-                                  ...current,
-                                  focus: option,
-                                }))
-                              }
-                              className={`rounded-xl px-4 py-3 text-sm capitalize transition-all ${
-                                learning.focus === option
-                                  ? 'border border-accent-purple/30 bg-accent-purple/15 text-white'
-                                  : 'border border-white/[0.08] bg-white/[0.03] text-white/55'
-                              }`}
-                            >
-                              {option.replace('-', ' ')}
-                            </button>
-                          ))}
+                          {["balanced", "quiz-first", "review-first"].map(
+                            (option) => (
+                              <button
+                                key={option}
+                                onClick={() =>
+                                  setLearning((current) => ({
+                                    ...current,
+                                    focus: option,
+                                  }))
+                                }
+                                className={`rounded-xl px-4 py-3 text-sm capitalize transition-all ${
+                                  learning.focus === option
+                                    ? "border border-accent-purple/30 bg-accent-purple/15 text-white"
+                                    : "border border-white/[0.08] bg-white/[0.03] text-white/55"
+                                }`}
+                              >
+                                {option.replace("-", " ")}
+                              </button>
+                            ),
+                          )}
                         </div>
                       </div>
                     </div>
                   </GlassCard>
                 )}
 
-                {activeSection === 'notifications' && (
+                {activeSection === "notifications" && (
                   <GlassCard className="p-8">
                     <h2 className="mb-6 text-2xl font-playfair font-bold text-white">
                       Notification Preferences
                     </h2>
                     <div className="space-y-4">
                       {[
-                        ['dailyReminders', 'Daily study reminders'],
-                        ['weeklyDigest', 'Weekly digest summary'],
-                        ['activityHighlights', 'Highlights from your latest study activity'],
+                        ["dailyReminders", "Daily study reminders"],
+                        ["weeklyDigest", "Weekly digest summary"],
+                        [
+                          "activityHighlights",
+                          "Highlights from your latest study activity",
+                        ],
                       ].map(([key, label]) => (
                         <label
                           key={key}
@@ -366,7 +375,9 @@ export default function SettingsPage() {
                           <span className="text-sm text-white/70">{label}</span>
                           <input
                             type="checkbox"
-                            checked={notifications[key as keyof typeof notifications]}
+                            checked={
+                              notifications[key as keyof typeof notifications]
+                            }
                             onChange={(e) =>
                               setNotifications((current) => ({
                                 ...current,
@@ -381,7 +392,7 @@ export default function SettingsPage() {
                   </GlassCard>
                 )}
 
-                {activeSection === 'privacy' && (
+                {activeSection === "privacy" && (
                   <GlassCard className="p-8">
                     <h2 className="mb-6 text-2xl font-playfair font-bold text-white">
                       Privacy Controls
@@ -423,7 +434,7 @@ export default function SettingsPage() {
                   </GlassCard>
                 )}
 
-                {activeSection === 'workspace' && (
+                {activeSection === "workspace" && (
                   <GlassCard className="p-8">
                     <h2 className="mb-6 text-2xl font-playfair font-bold text-white">
                       Workspace Snapshot
@@ -458,7 +469,7 @@ export default function SettingsPage() {
                       <GradientButton
                         size="md"
                         icon="📚"
-                        onClick={() => void router.push('/library')}
+                        onClick={() => void router.push("/library")}
                       >
                         Open Library
                       </GradientButton>
@@ -466,7 +477,7 @@ export default function SettingsPage() {
                         size="md"
                         variant="secondary"
                         icon="📈"
-                        onClick={() => void router.push('/dashboard')}
+                        onClick={() => void router.push("/dashboard")}
                       >
                         View Dashboard
                       </GradientButton>

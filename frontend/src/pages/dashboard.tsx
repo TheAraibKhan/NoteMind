@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
-import Head from 'next/head';
-import Link from 'next/link';
+import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
+import Head from "next/head";
+import Link from "next/link";
 import {
   ResponsiveContainer,
   BarChart,
@@ -15,12 +15,12 @@ import {
   PieChart,
   Pie,
   Cell,
-} from 'recharts';
-import PageLayout from '@/components/PageLayout';
-import GlassCard from '@/components/GlassCard';
-import DashboardWidget from '@/components/DashboardWidget';
-import GradientButton from '@/components/GradientButton';
-import { authAPI, flashcardsAPI, notesAPI, progressAPI } from '@/utils/api';
+} from "recharts";
+import PageLayout from "@/components/PageLayout";
+import GlassCard from "@/components/GlassCard";
+import DashboardWidget from "@/components/DashboardWidget";
+import GradientButton from "@/components/GradientButton";
+import { authAPI, flashcardsAPI, notesAPI, progressAPI } from "@/utils/api";
 
 interface UserProfile {
   userId: string;
@@ -61,12 +61,12 @@ interface ProgressResponse {
 }
 
 const tooltipStyle = {
-  backgroundColor: '#111111',
-  border: '1px solid rgba(255,255,255,0.08)',
-  borderRadius: '12px',
-  padding: '8px 12px',
-  fontSize: '12px',
-  color: '#f5f5f5',
+  backgroundColor: "#111111",
+  border: "1px solid rgba(255,255,255,0.08)",
+  borderRadius: "12px",
+  padding: "8px 12px",
+  fontSize: "12px",
+  color: "#f5f5f5",
 };
 
 const timeAgo = (value: string) => {
@@ -84,7 +84,7 @@ export default function DashboardPage() {
   const [notes, setNotes] = useState<NoteRecord[]>([]);
   const [flashcards, setFlashcards] = useState<FlashcardRecord[]>([]);
   const [progress, setProgress] = useState<ProgressRecord[]>([]);
-  const [stats, setStats] = useState<ProgressResponse['stats'] | null>(null);
+  const [stats, setStats] = useState<ProgressResponse["stats"] | null>(null);
   const [streak, setStreak] = useState(0);
   const [loading, setLoading] = useState(true);
 
@@ -93,18 +93,25 @@ export default function DashboardPage() {
       setLoading(true);
 
       try {
-        const [userResponse, notesResponse, flashcardsResponse, progressResponse, streakResponse] =
-          await Promise.all([
-            authAPI.verify(),
-            notesAPI.getAll(),
-            flashcardsAPI.getAll(),
-            progressAPI.getAll(),
-            progressAPI.getStreak(),
-          ]);
+        const [
+          userResponse,
+          notesResponse,
+          flashcardsResponse,
+          progressResponse,
+          streakResponse,
+        ] = await Promise.all([
+          authAPI.verify(),
+          notesAPI.getAll(),
+          flashcardsAPI.getAll(),
+          progressAPI.getAll(),
+          progressAPI.getStreak(),
+        ]);
 
         setUser(userResponse.data as UserProfile);
-        setNotes(notesResponse.data as NoteRecord[]);
-        setFlashcards(flashcardsResponse.data as FlashcardRecord[]);
+        setNotes((notesResponse.data as any).data as NoteRecord[]);
+        setFlashcards(
+          (flashcardsResponse.data as any).data as FlashcardRecord[],
+        );
         const progressPayload = progressResponse.data as ProgressResponse;
         setProgress(progressPayload.progress);
         setStats(progressPayload.stats);
@@ -124,40 +131,41 @@ export default function DashboardPage() {
 
   const recentActivity = [
     ...notes.map((note) => ({
-      action: 'Generated notes',
+      action: "Generated notes",
       topic: note.topic,
       time: timeAgo(note.createdAt),
       createdAt: note.createdAt,
-      icon: '📝',
+      icon: "📝",
     })),
     ...flashcards.map((item) => ({
-      action: 'Built flashcards',
+      action: "Built flashcards",
       topic: item.topic,
       time: timeAgo(item.createdAt),
       createdAt: item.createdAt,
-      icon: '🗂',
+      icon: "🗂",
     })),
     ...progress.map((item) => ({
-      action: 'Completed quiz',
+      action: "Completed quiz",
       topic: item.topic,
       time: timeAgo(item.updatedAt),
       createdAt: item.updatedAt,
-      icon: '🎯',
+      icon: "🎯",
     })),
   ]
     .sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     )
     .slice(0, 6);
 
   const studyTimeData = [
-    { name: 'Notes', value: notes.length, color: '#a855f7' },
+    { name: "Notes", value: notes.length, color: "#a855f7" },
     {
-      name: 'Quizzes',
+      name: "Quizzes",
       value: progress.reduce((sum, item) => sum + item.quizzesTaken, 0),
-      color: '#ec4899',
+      color: "#ec4899",
     },
-    { name: 'Flashcards', value: flashcards.length, color: '#f59e0b' },
+    { name: "Flashcards", value: flashcards.length, color: "#f59e0b" },
   ].filter((item) => item.value > 0);
 
   const weakTopics = progress
@@ -169,7 +177,10 @@ export default function DashboardPage() {
     (sum, item) => sum + item.cards.filter((card) => card.mastered).length,
     0,
   );
-  const totalFlashcards = flashcards.reduce((sum, item) => sum + item.cards.length, 0);
+  const totalFlashcards = flashcards.reduce(
+    (sum, item) => sum + item.cards.length,
+    0,
+  );
 
   return (
     <>
@@ -217,7 +228,9 @@ export default function DashboardPage() {
 
             {loading ? (
               <GlassCard hover={false} className="p-12 text-center">
-                <p className="text-sm text-white/50">Loading dashboard activity...</p>
+                <p className="text-sm text-white/50">
+                  Loading dashboard activity...
+                </p>
               </GlassCard>
             ) : (
               <>
@@ -229,10 +242,10 @@ export default function DashboardPage() {
                           Profile Overview
                         </p>
                         <h2 className="mt-2 text-2xl font-playfair font-bold text-white">
-                          {user?.name || 'Learner'}
+                          {user?.name || "Learner"}
                         </h2>
                         <p className="mt-1 text-sm text-white/45">
-                          {user?.email || 'Signed in user'}
+                          {user?.email || "Signed in user"}
                         </p>
                       </div>
                       <div className="grid grid-cols-2 gap-3 sm:min-w-[280px]">
@@ -262,10 +275,14 @@ export default function DashboardPage() {
                     </p>
                     <div className="grid grid-cols-2 gap-3">
                       {[
-                        { href: '/notebook', label: 'Notes', icon: '📝' },
-                        { href: '/quiz', label: 'Quiz', icon: '🎯' },
-                        { href: '/flashcards', label: 'Flashcards', icon: '🗂' },
-                        { href: '/library', label: 'Library', icon: '📚' },
+                        { href: "/notebook", label: "Notes", icon: "📝" },
+                        { href: "/quiz", label: "Quiz", icon: "🎯" },
+                        {
+                          href: "/flashcards",
+                          label: "Flashcards",
+                          icon: "🗂",
+                        },
+                        { href: "/library", label: "Library", icon: "📚" },
                       ].map((service) => (
                         <Link href={service.href} key={service.href}>
                           <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 transition-all hover:border-white/[0.12] hover:bg-white/[0.04]">
@@ -281,13 +298,21 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
-                  <DashboardWidget title="Topics Studied" value={stats?.totalTopics || notes.length} icon="📚" />
+                  <DashboardWidget
+                    title="Topics Studied"
+                    value={stats?.totalTopics || notes.length}
+                    icon="📚"
+                  />
                   <DashboardWidget
                     title="Avg Accuracy"
                     value={`${Math.round(Number(stats?.averageAccuracy || 0))}%`}
                     icon="🎯"
                   />
-                  <DashboardWidget title="Study Streak" value={`${streak} days`} icon="🔥" />
+                  <DashboardWidget
+                    title="Study Streak"
+                    value={`${streak} days`}
+                    icon="🔥"
+                  />
                   <DashboardWidget
                     title="Flashcards Mastered"
                     value={`${masteredFlashcards}/${totalFlashcards || 0}`}
@@ -303,13 +328,41 @@ export default function DashboardPage() {
                     {accuracyData.length > 0 ? (
                       <ResponsiveContainer width="100%" height={260}>
                         <BarChart data={accuracyData} barCategoryGap="20%">
-                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
-                          <XAxis dataKey="topic" stroke="rgba(255,255,255,0.25)" fontSize={11} tickLine={false} axisLine={false} />
-                          <YAxis stroke="rgba(255,255,255,0.25)" fontSize={11} tickLine={false} axisLine={false} />
-                          <Tooltip contentStyle={tooltipStyle} cursor={{ fill: 'rgba(255,255,255,0.02)' }} />
-                          <Bar dataKey="accuracy" fill="url(#barGradient)" radius={[6, 6, 0, 0]} />
+                          <CartesianGrid
+                            strokeDasharray="3 3"
+                            stroke="rgba(255,255,255,0.04)"
+                            vertical={false}
+                          />
+                          <XAxis
+                            dataKey="topic"
+                            stroke="rgba(255,255,255,0.25)"
+                            fontSize={11}
+                            tickLine={false}
+                            axisLine={false}
+                          />
+                          <YAxis
+                            stroke="rgba(255,255,255,0.25)"
+                            fontSize={11}
+                            tickLine={false}
+                            axisLine={false}
+                          />
+                          <Tooltip
+                            contentStyle={tooltipStyle}
+                            cursor={{ fill: "rgba(255,255,255,0.02)" }}
+                          />
+                          <Bar
+                            dataKey="accuracy"
+                            fill="url(#barGradient)"
+                            radius={[6, 6, 0, 0]}
+                          />
                           <defs>
-                            <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+                            <linearGradient
+                              id="barGradient"
+                              x1="0"
+                              y1="0"
+                              x2="0"
+                              y2="1"
+                            >
                               <stop offset="0%" stopColor="#a855f7" />
                               <stop offset="100%" stopColor="#7c3aed" />
                             </linearGradient>
@@ -349,17 +402,26 @@ export default function DashboardPage() {
                         </ResponsiveContainer>
                         <div className="mt-4 space-y-2">
                           {studyTimeData.map((item) => (
-                            <div key={item.name} className="flex items-center gap-2 text-xs">
-                              <div className="h-3 w-3 rounded-full" style={{ backgroundColor: item.color }} />
+                            <div
+                              key={item.name}
+                              className="flex items-center gap-2 text-xs"
+                            >
+                              <div
+                                className="h-3 w-3 rounded-full"
+                                style={{ backgroundColor: item.color }}
+                              />
                               <span className="text-white/60">{item.name}</span>
-                              <span className="ml-auto text-white/40">{item.value}</span>
+                              <span className="ml-auto text-white/40">
+                                {item.value}
+                              </span>
                             </div>
                           ))}
                         </div>
                       </>
                     ) : (
                       <p className="text-sm text-white/40">
-                        Your activity breakdown will appear after you start saving study sessions.
+                        Your activity breakdown will appear after you start
+                        saving study sessions.
                       </p>
                     )}
                   </GlassCard>
@@ -382,17 +444,22 @@ export default function DashboardPage() {
                             </div>
                             <div className="min-w-0 flex-1">
                               <p className="truncate text-sm text-white/70">
-                                {activity.action}:{' '}
-                                <span className="text-white/90">{activity.topic}</span>
+                                {activity.action}:{" "}
+                                <span className="text-white/90">
+                                  {activity.topic}
+                                </span>
                               </p>
                             </div>
-                            <span className="text-xs text-white/25">{activity.time}</span>
+                            <span className="text-xs text-white/25">
+                              {activity.time}
+                            </span>
                           </div>
                         ))}
                       </div>
                     ) : (
                       <p className="text-sm text-white/40">
-                        Start with a search in notes and your activity feed will populate here.
+                        Start with a search in notes and your activity feed will
+                        populate here.
                       </p>
                     )}
                   </GlassCard>
@@ -410,9 +477,12 @@ export default function DashboardPage() {
                           >
                             <div className="flex items-center justify-between gap-3">
                               <div>
-                                <p className="font-medium text-white/80">{item.topic}</p>
+                                <p className="font-medium text-white/80">
+                                  {item.topic}
+                                </p>
                                 <p className="mt-1 text-xs text-white/35">
-                                  Accuracy {Math.round(item.averageAccuracy)}% · {item.quizzesTaken} quizzes
+                                  Accuracy {Math.round(item.averageAccuracy)}% ·{" "}
+                                  {item.quizzesTaken} quizzes
                                 </p>
                               </div>
                               <GradientButton
@@ -432,7 +502,8 @@ export default function DashboardPage() {
                       </div>
                     ) : (
                       <p className="text-sm text-white/40">
-                        No weak topics flagged yet. Keep taking quizzes to build targeted review suggestions.
+                        No weak topics flagged yet. Keep taking quizzes to build
+                        targeted review suggestions.
                       </p>
                     )}
                   </GlassCard>

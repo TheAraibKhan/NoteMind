@@ -1,13 +1,13 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
-import Head from 'next/head';
-import { useRouter } from 'next/router';
-import PageLayout from '@/components/PageLayout';
-import GlassCard from '@/components/GlassCard';
-import GradientButton from '@/components/GradientButton';
-import { flashcardsAPI, notesAPI, progressAPI } from '@/utils/api';
+import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
+import Head from "next/head";
+import { useRouter } from "next/router";
+import PageLayout from "@/components/PageLayout";
+import GlassCard from "@/components/GlassCard";
+import GradientButton from "@/components/GradientButton";
+import { flashcardsAPI, notesAPI, progressAPI } from "@/utils/api";
 
 interface NoteRecord {
   _id: string;
@@ -55,22 +55,24 @@ interface LibraryEntry {
   masteredCount: number;
   quizzesTaken: number;
   averageAccuracy: number | null;
-  status: 'strong' | 'weak' | 'new';
+  status: "strong" | "weak" | "new";
 }
 
 const formatRelativeDate = (value: string) => {
   const date = new Date(value);
   return date.toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
+    month: "short",
+    day: "numeric",
+    year: "numeric",
   });
 };
 
 export default function LibraryPage() {
   const router = useRouter();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedFilter, setSelectedFilter] = useState<'all' | 'strong' | 'weak' | 'new'>('all');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedFilter, setSelectedFilter] = useState<
+    "all" | "strong" | "weak" | "new"
+  >("all");
   const [entries, setEntries] = useState<LibraryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -81,19 +83,25 @@ export default function LibraryPage() {
       setError(null);
 
       try {
-        const [notesResponse, flashcardsResponse, progressResponse] = await Promise.all([
-          notesAPI.getAll(),
-          flashcardsAPI.getAll(),
-          progressAPI.getAll(),
-        ]);
+        const [notesResponse, flashcardsResponse, progressResponse] =
+          await Promise.all([
+            notesAPI.getAll(),
+            flashcardsAPI.getAll(),
+            progressAPI.getAll(),
+          ]);
 
-        const notes = notesResponse.data as NoteRecord[];
-        const flashcards = flashcardsResponse.data as FlashcardRecord[];
+        const notes = (notesResponse.data as any).data as NoteRecord[];
+        const flashcards = (flashcardsResponse.data as any)
+          .data as FlashcardRecord[];
         const progress = (progressResponse.data as ProgressResponse).progress;
 
         const builtEntries = notes.map((note) => {
-          const noteProgress = progress.find((item) => item.topic === note.topic);
-          const noteFlashcards = flashcards.find((item) => item.topic === note.topic);
+          const noteProgress = progress.find(
+            (item) => item.topic === note.topic,
+          );
+          const noteFlashcards = flashcards.find(
+            (item) => item.topic === note.topic,
+          );
           const averageAccuracy =
             noteProgress && Number.isFinite(noteProgress.averageAccuracy)
               ? Math.round(noteProgress.averageAccuracy)
@@ -104,7 +112,7 @@ export default function LibraryPage() {
             topic: note.topic,
             summary:
               note.content.definition ||
-              'Structured notes saved from your recent search.',
+              "Structured notes saved from your recent search.",
             createdAt: note.createdAt,
             sections: note.sections,
             flashcardCount: noteFlashcards?.cards.length || 0,
@@ -114,10 +122,10 @@ export default function LibraryPage() {
             averageAccuracy,
             status:
               averageAccuracy === null
-                ? 'new'
+                ? "new"
                 : averageAccuracy >= 80
-                  ? 'strong'
-                  : 'weak',
+                  ? "strong"
+                  : "weak",
           } satisfies LibraryEntry;
         });
 
@@ -128,7 +136,7 @@ export default function LibraryPage() {
           ),
         );
       } catch (err) {
-        setError('Could not load your library right now.');
+        setError("Could not load your library right now.");
       } finally {
         setLoading(false);
       }
@@ -142,7 +150,7 @@ export default function LibraryPage() {
       .toLowerCase()
       .includes(searchTerm.toLowerCase());
     const matchesFilter =
-      selectedFilter === 'all' || entry.status === selectedFilter;
+      selectedFilter === "all" || entry.status === selectedFilter;
 
     return matchesSearch && matchesFilter;
   });
@@ -181,7 +189,7 @@ export default function LibraryPage() {
                 <div className="text-sm font-inter text-white/35">
                   <span className="font-semibold text-white/70">
                     {filteredEntries.length}
-                  </span>{' '}
+                  </span>{" "}
                   study entries
                 </div>
               </div>
@@ -208,22 +216,22 @@ export default function LibraryPage() {
 
               <div className="flex flex-wrap gap-2">
                 {[
-                  { key: 'all', label: 'All Entries' },
-                  { key: 'new', label: 'New' },
-                  { key: 'strong', label: 'Strong' },
-                  { key: 'weak', label: 'Needs Review' },
+                  { key: "all", label: "All Entries" },
+                  { key: "new", label: "New" },
+                  { key: "strong", label: "Strong" },
+                  { key: "weak", label: "Needs Review" },
                 ].map((filter) => (
                   <button
                     key={filter.key}
                     onClick={() =>
                       setSelectedFilter(
-                        filter.key as 'all' | 'strong' | 'weak' | 'new',
+                        filter.key as "all" | "strong" | "weak" | "new",
                       )
                     }
                     className={`rounded-xl px-4 py-2 text-xs font-inter font-medium transition-all ${
                       selectedFilter === filter.key
-                        ? 'border border-accent-purple/40 bg-accent-purple/20 text-accent-purple'
-                        : 'border border-white/[0.06] bg-white/[0.03] text-white/40 hover:border-white/[0.12] hover:text-white/60'
+                        ? "border border-accent-purple/40 bg-accent-purple/20 text-accent-purple"
+                        : "border border-white/[0.06] bg-white/[0.03] text-white/40 hover:border-white/[0.12] hover:text-white/60"
                     }`}
                   >
                     {filter.label}
@@ -253,23 +261,26 @@ export default function LibraryPage() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.05 }}
                   >
-                    <GlassCard className="flex h-full flex-col justify-between" glow>
+                    <GlassCard
+                      className="flex h-full flex-col justify-between"
+                      glow
+                    >
                       <div>
                         <div className="mb-3 flex items-center justify-between">
                           <span
                             className={`inline-block rounded-full px-2.5 py-1 text-[10px] font-inter font-medium uppercase tracking-wider ${
-                              entry.status === 'strong'
-                                ? 'bg-emerald-500/15 text-emerald-300'
-                                : entry.status === 'weak'
-                                  ? 'bg-pink-500/15 text-pink-300'
-                                  : 'bg-white/[0.05] text-white/45'
+                              entry.status === "strong"
+                                ? "bg-emerald-500/15 text-emerald-300"
+                                : entry.status === "weak"
+                                  ? "bg-pink-500/15 text-pink-300"
+                                  : "bg-white/[0.05] text-white/45"
                             }`}
                           >
-                            {entry.status === 'strong'
-                              ? 'Strong'
-                              : entry.status === 'weak'
-                                ? 'Needs Review'
-                                : 'New'}
+                            {entry.status === "strong"
+                              ? "Strong"
+                              : entry.status === "weak"
+                                ? "Needs Review"
+                                : "New"}
                           </span>
                           <span className="text-[11px] font-inter text-white/25">
                             {formatRelativeDate(entry.createdAt)}
@@ -307,7 +318,7 @@ export default function LibraryPage() {
                             <p className="mt-1 text-lg font-semibold text-white/80">
                               {entry.averageAccuracy !== null
                                 ? `${entry.averageAccuracy}%`
-                                : 'Pending'}
+                                : "Pending"}
                             </p>
                           </div>
                           <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
@@ -367,7 +378,10 @@ export default function LibraryPage() {
 
             {!loading && !error && filteredEntries.length === 0 && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                <GlassCard hover={false} className="mx-auto max-w-md p-12 text-center">
+                <GlassCard
+                  hover={false}
+                  className="mx-auto max-w-md p-12 text-center"
+                >
                   <div className="mb-4 text-4xl">📚</div>
                   <p className="mb-2 text-sm font-inter text-white/40">
                     No saved study entries yet.
@@ -379,7 +393,7 @@ export default function LibraryPage() {
                   <GradientButton
                     size="md"
                     icon="✨"
-                    onClick={() => void router.push('/notebook')}
+                    onClick={() => void router.push("/notebook")}
                   >
                     Start Studying
                   </GradientButton>
