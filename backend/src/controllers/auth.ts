@@ -1,6 +1,6 @@
-import { Request, Response } from 'express';
-import jwt from 'jsonwebtoken';
-import User from '@/models/User';
+import { Request, Response } from "express";
+import jwt from "jsonwebtoken";
+import User from "@/models/User";
 
 interface AuthRequest extends Request {
   body: {
@@ -19,21 +19,21 @@ interface AuthResponse {
 
 export const register = async (
   req: AuthRequest,
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const { name, email, password } = req.body;
 
     // Validate input
     if (!name || !email || !password) {
-      res.status(400).json({ error: 'All fields are required' });
+      res.status(400).json({ error: "All fields are required" });
       return;
     }
 
     // Check if user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      res.status(409).json({ error: 'Email already registered' });
+      res.status(409).json({ error: "Email already registered" });
       return;
     }
 
@@ -44,8 +44,8 @@ export const register = async (
     // Generate token
     const token = jwt.sign(
       { userId: user._id },
-      process.env.JWT_SECRET || 'secret',
-      { expiresIn: '7d' }
+      process.env.JWT_SECRET || "secret",
+      { expiresIn: "7d" },
     );
 
     const response: AuthResponse = {
@@ -57,38 +57,36 @@ export const register = async (
 
     res.status(201).json(response);
   } catch (error) {
-    res.status(500).json({ error: 'Registration failed' });
+    console.error("Register error:", error);
+    res.status(500).json({ error: "Registration failed" });
   }
 };
 
-export const login = async (
-  req: AuthRequest,
-  res: Response
-): Promise<void> => {
+export const login = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { email, password } = req.body;
 
     if (!email || !password) {
-      res.status(400).json({ error: 'Email and password required' });
+      res.status(400).json({ error: "Email and password required" });
       return;
     }
 
     const user = await User.findOne({ email });
     if (!user) {
-      res.status(401).json({ error: 'Invalid credentials' });
+      res.status(401).json({ error: "Invalid credentials" });
       return;
     }
 
     const isPasswordValid = await user.comparePassword(password);
     if (!isPasswordValid) {
-      res.status(401).json({ error: 'Invalid credentials' });
+      res.status(401).json({ error: "Invalid credentials" });
       return;
     }
 
     const token = jwt.sign(
       { userId: user._id },
-      process.env.JWT_SECRET || 'secret',
-      { expiresIn: '7d' }
+      process.env.JWT_SECRET || "secret",
+      { expiresIn: "7d" },
     );
 
     const response: AuthResponse = {
@@ -100,18 +98,19 @@ export const login = async (
 
     res.json(response);
   } catch (error) {
-    res.status(500).json({ error: 'Login failed' });
+    console.error("Login error:", error);
+    res.status(500).json({ error: "Login failed" });
   }
 };
 
 export const verify = async (
   req: Request & { userId?: string },
-  res: Response
+  res: Response,
 ): Promise<void> => {
   try {
     const user = await User.findById(req.userId);
     if (!user) {
-      res.status(404).json({ error: 'User not found' });
+      res.status(404).json({ error: "User not found" });
       return;
     }
 
@@ -121,6 +120,6 @@ export const verify = async (
       name: user.name,
     });
   } catch (error) {
-    res.status(500).json({ error: 'Verification failed' });
+    res.status(500).json({ error: "Verification failed" });
   }
 };
