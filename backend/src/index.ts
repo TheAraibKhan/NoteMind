@@ -21,7 +21,38 @@ let server: ReturnType<typeof app.listen> | undefined;
 
 // Security & Performance Middleware
 app.use(helmet());
-app.use(cors({ origin: process.env.CORS_ORIGIN || "http://localhost:3000" }));
+
+const normalizeOrigin = (value: string): string => value.replace(/\/$/, "");
+const configuredOrigins = (process.env.CORS_ORIGIN || "http://localhost:3000")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean)
+  .map(normalizeOrigin);
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+
+      const normalizedOrigin = normalizeOrigin(origin);
+      if (configuredOrigins.includes(normalizedOrigin)) {
+        callback(null, true);
+        return;
+      }
+
+      callback(
+        new Error(
+          `CORS blocked for origin ${origin}. Allowed: ${configuredOrigins.join(
+            ", ",
+          )}`,
+        ),
+      );
+    },
+  }),
+);
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
