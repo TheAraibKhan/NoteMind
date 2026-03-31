@@ -23,13 +23,18 @@ interface GeneratedNotesResponse {
   topic: string;
   content: {
     definition?: string;
+    key_concepts?: string[];
     keyConcepts?: string[];
+    important_points?: string[];
     importantPoints?: string[];
     examples?: string[];
+    exam_highlights?: string[];
     examHighlights?: string[];
   };
   sections: number;
   saved?: boolean;
+  source?: string;
+  cached?: boolean;
 }
 
 interface ApiErrorResponse {
@@ -53,12 +58,12 @@ const mapApiNotesToSections = (
   {
     section: 'Key Concepts',
     icon: '💡',
-    content: formatList(content.keyConcepts),
+    content: formatList(content.key_concepts || content.keyConcepts),
   },
   {
     section: 'Important Points',
     icon: '⭐',
-    content: formatList(content.importantPoints),
+    content: formatList(content.important_points || content.importantPoints),
   },
   {
     section: 'Examples',
@@ -68,7 +73,7 @@ const mapApiNotesToSections = (
   {
     section: 'Exam Highlights',
     icon: '🎯',
-    content: formatList(content.examHighlights),
+    content: formatList(content.exam_highlights || content.examHighlights),
   },
 ];
 
@@ -82,6 +87,7 @@ export default function NotebookPage() {
   const [topic, setTopic] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [savedToLibrary, setSavedToLibrary] = useState(false);
+  const [source, setSource] = useState<string | null>(null);
 
   const handleGenerateNotes = async (inputTopic: string) => {
     setLoading(true);
@@ -89,12 +95,14 @@ export default function NotebookPage() {
     setNotes(null);
     setError(null);
     setSavedToLibrary(false);
+    setSource(null);
 
     try {
       const response = await notesAPI.generate(inputTopic);
       const generated = response.data as GeneratedNotesResponse;
       setNotes(mapApiNotesToSections(generated.content));
       setSavedToLibrary(Boolean(generated.saved));
+      setSource(generated.source || null);
       void router.replace(
         `/notebook?topic=${encodeURIComponent(inputTopic)}`,
         undefined,
@@ -197,16 +205,36 @@ export default function NotebookPage() {
                 animate={{ opacity: 1 }}
                 className="mt-12"
               >
-                <div className="mb-8 flex items-center gap-3">
-                  <div className="h-8 w-1 rounded-full bg-gradient-to-b from-accent-purple to-accent-pink" />
-                  <div>
-                    <p className="text-xs font-inter uppercase tracking-wider text-white/30">
-                      Generated Notes
-                    </p>
-                    <h2 className="text-2xl font-playfair font-bold text-white">
-                      {topic}
-                    </h2>
+                <div className="mb-8 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="h-8 w-1 rounded-full bg-gradient-to-b from-accent-purple to-accent-pink" />
+                    <div>
+                      <p className="text-xs font-inter uppercase tracking-wider text-white/30">
+                        Generated Notes
+                      </p>
+                      <h2 className="text-2xl font-playfair font-bold text-white">
+                        {topic}
+                      </h2>
+                    </div>
                   </div>
+                  {source && (
+                    <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5">
+                      <div className={`h-2 w-2 rounded-full ${
+                        source === 'Wikipedia'
+                          ? 'bg-blue-400'
+                          : source === 'Groq'
+                            ? 'bg-green-400'
+                            : source === 'Gemini'
+                              ? 'bg-yellow-400'
+                              : source === 'OpenAI'
+                                ? 'bg-emerald-400'
+                                : 'bg-white/40'
+                      }`} />
+                      <span className="text-xs font-inter font-medium text-white/50">
+                        Powered by {source}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-5">

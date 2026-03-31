@@ -103,6 +103,7 @@ export const generateFlashcards = async (
         totalCards: savedFlashcard.cards.length,
         saved: true,
         cached: result.cached || false,
+        source: result.provider || (result.fallbackUsed ? "Wikipedia" : "unknown"),
       });
     } catch (dbError) {
       logger.error("FlashcardsController", "Failed to save flashcards to DB", dbError as Error);

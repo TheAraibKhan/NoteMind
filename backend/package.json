@@ -18,10 +18,12 @@
     "dotenv": "^16.6.1",
     "express": "^4.22.1",
     "express-validator": "^7.0.0",
+    "groq-sdk": "^1.1.2",
     "helmet": "^7.2.0",
     "jsonwebtoken": "^9.0.3",
     "mongodb": "^7.1.0",
-    "mongoose": "^7.8.9"
+    "mongoose": "^7.8.9",
+    "openai": "^6.33.0"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

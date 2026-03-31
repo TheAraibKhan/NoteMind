@@ -99,6 +99,7 @@ export const generateQuiz = async (
         totalQuestions: savedQuiz.questions.length,
         saved: true,
         cached: result.cached || false,
+        source: result.provider || (result.fallbackUsed ? "Wikipedia" : "unknown"),
       });
     } catch (dbError) {
       logger.error("QuizController", "Failed to save quiz to DB", dbError as Error);

@@ -25,6 +25,7 @@ interface GeneratedFlashcardsResponse {
   cards: FlashcardItem[];
   totalCards: number;
   saved?: boolean;
+  source?: string;
 }
 
 interface ApiErrorResponse {
@@ -44,6 +45,7 @@ export default function FlashcardsPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savedToLibrary, setSavedToLibrary] = useState(false);
+  const [source, setSource] = useState<string | null>(null);
 
   const generateFlashcards = async (inputTopic: string) => {
     setLoading(true);
@@ -51,6 +53,7 @@ export default function FlashcardsPage() {
     setTopic(inputTopic);
     setCurrentCard(0);
     setSavedToLibrary(false);
+    setSource(null);
 
     try {
       const response = await flashcardsAPI.generate(inputTopic);
@@ -58,6 +61,7 @@ export default function FlashcardsPage() {
       setFlashcardSetId(generated.id);
       setCards(generated.cards || []);
       setSavedToLibrary(Boolean(generated.saved));
+      setSource(generated.source || null);
       void router.replace(
         `/flashcards?topic=${encodeURIComponent(inputTopic)}`,
         undefined,
@@ -214,6 +218,18 @@ export default function FlashcardsPage() {
                       <span className="text-sm font-inter font-semibold text-accent-green">
                         {masteredCount}/{cards.length}
                       </span>
+                      {source && (
+                        <span className="flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5">
+                          <span className={`h-1.5 w-1.5 rounded-full ${
+                            source === 'Wikipedia' ? 'bg-blue-400'
+                              : source === 'Groq' ? 'bg-green-400'
+                              : source === 'Gemini' ? 'bg-yellow-400'
+                              : source === 'OpenAI' ? 'bg-emerald-400'
+                              : 'bg-white/40'
+                          }`} />
+                          <span className="text-[10px] font-inter text-white/30">{source}</span>
+                        </span>
+                      )}
                     </div>
                   </div>
                   <div className="h-1 overflow-hidden rounded-full bg-white/[0.06]">

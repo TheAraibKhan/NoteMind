@@ -13,6 +13,7 @@ import { rateLimitMiddleware } from "./middleware/rateLimit";
 import { paginate } from "./middleware/validation";
 import { analyticsMiddleware, getAnalytics } from "./middleware/analytics";
 import { getAIServiceHealth } from "./services/aiService";
+import { providerManager } from "./services/providerManager";
 import { cachingService } from "./services/cachingService";
 import { logger } from "./utils/logger";
 
@@ -131,6 +132,7 @@ const connectDB = async (): Promise<boolean> => {
 app.get("/api/health", (_req, res) => {
   const uptimeSeconds = Math.round((Date.now() - startTime) / 1000);
   const memUsage = process.memoryUsage();
+  const aiHealth = getAIServiceHealth();
 
   res.json({
     status: dbStatus === "connected" ? "OK" : "DEGRADED",
@@ -138,7 +140,7 @@ app.get("/api/health", (_req, res) => {
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || "development",
     database: dbStatus,
-    ai: getAIServiceHealth(),
+    ai: aiHealth,
     memory: {
       heapUsed: `${Math.round(memUsage.heapUsed / 1024 / 1024)}MB`,
       heapTotal: `${Math.round(memUsage.heapTotal / 1024 / 1024)}MB`,
@@ -242,17 +244,29 @@ app.use((req, res) => {
 const PORT = process.env.PORT || 5000;
 
 const logStartupBanner = () => {
+  const configuredProviders = providerManager.getConfiguredProviderNames();
+  const activeProvider = providerManager.getActiveProvider();
+
   console.log("\n========================================");
   console.log("         NoteMind SaaS API");
+  console.log("    Multi-Provider AI Backend");
   console.log("========================================");
-  console.log(`  Server:  http://localhost:${PORT}`);
-  console.log(`  Env:     ${process.env.NODE_ENV || "development"}`);
-  console.log(`  DB:      ${dbStatus}`);
-  console.log(
-    `  Gemini:  ${process.env.GEMINI_API_KEY ? "configured" : "not configured"}`,
-  );
-  console.log(`  Model:   ${process.env.GEMINI_MODEL || "gemini-2.0-flash"}`);
+  console.log(`  Server:     http://localhost:${PORT}`);
+  console.log(`  Env:        ${process.env.NODE_ENV || "development"}`);
+  console.log(`  DB:         ${dbStatus}`);
+  console.log(`  Providers:  ${configuredProviders.length > 0 ? configuredProviders.join(" → ") : "NONE CONFIGURED"}`);
+  console.log(`  Active:     ${activeProvider?.name || "none"}`);
+  console.log(`  Groq:       ${process.env.GROQ_API_KEY ? "✓ configured (free)" : "✗ not configured"}`);
+  console.log(`  Gemini:     ${process.env.GEMINI_API_KEY ? "✓ configured (free tier)" : "✗ not configured"}`);
+  console.log(`  OpenAI:     ${process.env.OPENAI_API_KEY ? "✓ configured (paid)" : "✗ not configured (paid, optional)"}`);
   console.log("========================================\n");
+
+  if (configuredProviders.length === 0) {
+    console.warn("⚠️  WARNING: No AI providers configured! Only Wikipedia fallback will work.");
+    console.warn("   Set at least one of: GROQ_API_KEY, GEMINI_API_KEY, OPENAI_API_KEY\n");
+  }
+
+
 };
 
 const startServer = async () => {

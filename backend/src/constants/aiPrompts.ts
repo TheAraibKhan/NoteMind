@@ -217,7 +217,7 @@ export const ERROR_MESSAGES = {
   INVALID_INPUT:
     "Please ask a clear learning question — for example, 'Explain photosynthesis' or 'What is machine learning?'",
   AI_UNAVAILABLE:
-    "Our AI tutor is temporarily busy. Please try again in a moment — your question is important to us.",
+    "I couldn't generate a reliable answer right now. Please try again in a moment.",
   WEAK_RESPONSE:
     "I couldn't generate a reliable answer for that. Please try rephrasing your question with more detail.",
   RATE_LIMITED:
@@ -292,7 +292,40 @@ export const RETRY_CONFIG = {
 };
 
 export const CIRCUIT_BREAKER_CONFIG = {
-  FAILURE_THRESHOLD: 5,         // failures before opening circuit
-  RECOVERY_TIMEOUT_MS: 60_000,  // 1 minute before trying again
-  HALF_OPEN_MAX_CALLS: 2,       // test calls in half-open state
+  FAILURE_THRESHOLD: 5,           // failures before opening circuit
+  RECOVERY_TIMEOUT_MS: 60_000,    // 1 minute before trying again
+  HALF_OPEN_MAX_CALLS: 2,         // test calls in half-open state
 };
+
+// ============================================================================
+// MULTI-PROVIDER CONFIGURATION
+// ============================================================================
+
+export const PROVIDER_CONFIG = {
+  /** Provider priority order (lower = higher priority, free providers first) */
+  /** Fallback chain: Groq (free) → Gemini (free tier) → OpenAI (paid, optional) → Wikipedia */
+  GROQ: {
+    priority: 1,
+    model: "llama-3.1-8b-instant",
+    timeoutMs: 30_000,
+    envKey: "GROQ_API_KEY",
+    free: true,
+  },
+  GEMINI: {
+    priority: 2,
+    model: "gemini-2.0-flash",
+    timeoutMs: 30_000,
+    envKey: "GEMINI_API_KEY",
+    free: true,
+  },
+  OPENAI: {
+    priority: 3,
+    model: "gpt-3.5-turbo",
+    timeoutMs: 30_000,
+    envKey: "OPENAI_API_KEY",
+    free: false,
+  },
+} as const;
+
+/** Rate limit cooldown (ms) applied when a provider returns 429 */
+export const RATE_LIMIT_COOLDOWN_MS = 30_000;

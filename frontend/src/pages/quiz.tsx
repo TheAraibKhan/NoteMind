@@ -25,6 +25,7 @@ interface GeneratedQuizResponse {
   topic: string;
   questions: Question[];
   totalQuestions: number;
+  source?: string;
 }
 
 interface ApiErrorResponse {
@@ -47,6 +48,7 @@ export default function QuizPage() {
   const [quizCompleted, setQuizCompleted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [source, setSource] = useState<string | null>(null);
 
   const startQuiz = async (topic: string) => {
     setLoading(true);
@@ -58,12 +60,14 @@ export default function QuizPage() {
     setCurrentQuestion(0);
     setScore(0);
     setQuizTopic(topic);
+    setSource(null);
 
     try {
       const response = await quizAPI.generate(topic);
       const generated = response.data as GeneratedQuizResponse;
       setQuestions(generated.questions || []);
       setQuizStarted(true);
+      setSource(generated.source || null);
       if (router.pathname === '/quiz') {
         void router.replace(
           `/quiz?topic=${encodeURIComponent(topic)}`,
@@ -315,6 +319,18 @@ export default function QuizPage() {
                         <span className="text-sm font-inter font-semibold text-accent-gold">
                           {quizTopic}
                         </span>
+                        {source && (
+                          <span className="flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5">
+                            <span className={`h-1.5 w-1.5 rounded-full ${
+                              source === 'Wikipedia' ? 'bg-blue-400'
+                                : source === 'Groq' ? 'bg-green-400'
+                                : source === 'Gemini' ? 'bg-yellow-400'
+                                : source === 'OpenAI' ? 'bg-emerald-400'
+                                : 'bg-white/40'
+                            }`} />
+                            <span className="text-[10px] font-inter text-white/30">{source}</span>
+                          </span>
+                        )}
                       </div>
                     </div>
                     <div className="h-1 overflow-hidden rounded-full bg-white/[0.06]">
