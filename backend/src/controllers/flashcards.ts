@@ -24,15 +24,26 @@ export const generateFlashcards = async (
     const { noteId } = req.body;
     const userId = req.userId;
 
-    if (!topic || !userId) {
-      res.status(400).json({ error: "Topic and authentication required" });
+    if (!topic) {
+      res.status(400).json({ error: "Topic is required" });
       return;
     }
 
     // Generate flashcard content
     const cards = await generateFlashcardsAI(topic);
 
-    // Save flashcards
+    if (!userId) {
+      res.status(201).json({
+        id: null,
+        topic,
+        cards,
+        totalCards: cards.length,
+        saved: false,
+      });
+      return;
+    }
+
+    // Save flashcards for authenticated users
     const flashcard = new Flashcard({
       topic,
       userId,
@@ -47,6 +58,7 @@ export const generateFlashcards = async (
       topic: flashcard.topic,
       cards: flashcard.cards,
       totalCards: flashcard.cards.length,
+      saved: true,
     });
   } catch (error) {
     console.error("Failed to generate flashcards:", error);

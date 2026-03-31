@@ -21,15 +21,26 @@ export const generateQuiz = async (
     const { noteId } = req.body;
     const userId = req.userId;
 
-    if (!topic || !userId) {
-      res.status(400).json({ error: "Topic and authentication required" });
+    if (!topic) {
+      res.status(400).json({ error: "Topic is required" });
       return;
     }
 
     // Generate quiz questions using AI
     const questions = await generateQuizQuestions(topic);
 
-    // Save quiz
+    if (!userId) {
+      res.status(201).json({
+        id: null,
+        topic,
+        questions,
+        totalQuestions: questions.length,
+        saved: false,
+      });
+      return;
+    }
+
+    // Save quiz for authenticated users
     const quiz = new Quiz({
       topic,
       userId,
@@ -44,6 +55,7 @@ export const generateQuiz = async (
       topic: quiz.topic,
       questions: quiz.questions,
       totalQuestions: quiz.questions.length,
+      saved: true,
     });
   } catch (error) {
     console.error("Failed to generate quiz:", error);

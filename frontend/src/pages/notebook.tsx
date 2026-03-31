@@ -19,7 +19,7 @@ interface NoteSection {
 }
 
 interface GeneratedNotesResponse {
-  id: string;
+  id: string | null;
   topic: string;
   content: {
     definition?: string;
@@ -29,6 +29,7 @@ interface GeneratedNotesResponse {
     examHighlights?: string[];
   };
   sections: number;
+  saved?: boolean;
 }
 
 interface ApiErrorResponse {
@@ -80,17 +81,20 @@ export default function NotebookPage() {
   const [loading, setLoading] = useState(false);
   const [topic, setTopic] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [savedToLibrary, setSavedToLibrary] = useState(false);
 
   const handleGenerateNotes = async (inputTopic: string) => {
     setLoading(true);
     setTopic(inputTopic);
     setNotes(null);
     setError(null);
+    setSavedToLibrary(false);
 
     try {
       const response = await notesAPI.generate(inputTopic);
       const generated = response.data as GeneratedNotesResponse;
       setNotes(mapApiNotesToSections(generated.content));
+      setSavedToLibrary(Boolean(generated.saved));
       void router.replace(
         `/notebook?topic=${encodeURIComponent(inputTopic)}`,
         undefined,
@@ -269,8 +273,9 @@ export default function NotebookPage() {
                   </GradientButton>
                 </motion.div>
                 <p className="mt-4 text-center text-xs font-inter text-white/35">
-                  This search is saved automatically to your library and dashboard
-                  activity.
+                  {savedToLibrary
+                    ? 'This search is saved automatically to your library and dashboard activity.'
+                    : 'You can generate notes without logging in. Sign in to save them to your library and dashboard activity.'}
                 </p>
               </motion.div>
             )}

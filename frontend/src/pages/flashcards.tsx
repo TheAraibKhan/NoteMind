@@ -20,10 +20,11 @@ interface FlashcardItem {
 }
 
 interface GeneratedFlashcardsResponse {
-  id: string;
+  id: string | null;
   topic: string;
   cards: FlashcardItem[];
   totalCards: number;
+  saved?: boolean;
 }
 
 interface ApiErrorResponse {
@@ -42,18 +43,21 @@ export default function FlashcardsPage() {
   const [currentCard, setCurrentCard] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [savedToLibrary, setSavedToLibrary] = useState(false);
 
   const generateFlashcards = async (inputTopic: string) => {
     setLoading(true);
     setError(null);
     setTopic(inputTopic);
     setCurrentCard(0);
+    setSavedToLibrary(false);
 
     try {
       const response = await flashcardsAPI.generate(inputTopic);
       const generated = response.data as GeneratedFlashcardsResponse;
       setFlashcardSetId(generated.id);
       setCards(generated.cards || []);
+      setSavedToLibrary(Boolean(generated.saved));
       void router.replace(
         `/flashcards?topic=${encodeURIComponent(inputTopic)}`,
         undefined,
@@ -296,7 +300,9 @@ export default function FlashcardsPage() {
                       cards for <span className="font-semibold text-white">{topic}</span>.
                     </p>
                     <p className="mb-8 text-xs font-inter text-white/30">
-                      This session is now reflected in your library and activity history.
+                      {savedToLibrary
+                        ? 'This session is now reflected in your library and activity history.'
+                        : 'You can review flashcards without logging in. Sign in to save decks and mastery history.'}
                     </p>
                     <div className="flex flex-wrap justify-center gap-3">
                       <GradientButton onClick={handleReset} size="lg" icon="🔄">

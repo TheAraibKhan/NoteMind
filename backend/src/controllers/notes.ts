@@ -20,20 +20,33 @@ export const generateNotes = async (
     const topic = req.body.topic?.trim();
     const userId = req.userId;
 
-    if (!topic || !userId) {
-      res.status(400).json({ error: 'Topic and authentication required' });
+    if (!topic) {
+      res.status(400).json({ error: 'Topic is required' });
       return;
     }
 
     // Generate notes using AI service
     const content = await generateNotesContent(topic);
 
-    // Save to database
+    const sections = Object.keys(content).length;
+
+    if (!userId) {
+      res.status(201).json({
+        id: null,
+        topic,
+        content,
+        sections,
+        saved: false,
+      });
+      return;
+    }
+
+    // Save to database for authenticated users
     const note = new Note({
       topic,
       userId,
       content,
-      sections: Object.keys(content).length,
+      sections,
     });
 
     await note.save();
@@ -43,6 +56,7 @@ export const generateNotes = async (
       topic: note.topic,
       content: note.content,
       sections: note.sections,
+      saved: true,
     });
   } catch (error) {
     console.error("Failed to generate notes:", error);
