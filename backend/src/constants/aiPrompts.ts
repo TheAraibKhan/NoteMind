@@ -72,19 +72,22 @@ OUTPUT FORMAT (strict JSON):
 {
   "title": "Clear topic title",
   "definition": "1-2 sentence core definition",
-  "key_concepts": ["concept1", "concept2", ...],     // 3-6 items
-  "important_points": ["point1", "point2", ...],      // 3-6 items
-  "examples": ["example1", "example2", ...],          // 2-4 items
-  "exam_highlights": ["highlight1", "highlight2", ...]// 3-5 items
+  "key_concepts": ["concept1", "concept2", "concept3"],     // MUST have 3-6 items
+  "important_points": ["point1", "point2", "point3"],      // MUST have 3-6 items  
+  "examples": ["example1", "example2"],          // MUST have 2-4 items
+  "exam_highlights": ["highlight1", "highlight2", "highlight3"]// MUST have 3-5 items
 }
 
-RULES:
+CRITICAL RULES:
+- EVERY field must be populated. NO empty arrays.
+- Each array item must be a substantial, useful string (min 10 characters).
 - Every fact must be verifiable — no fabrication.
 - Use clear, concise language without oversimplifying.
 - Include WHY each point matters.
 - Make content scannable and exam-oriented.
 - Provide practical, real-world relevance.
-- Return ONLY valid JSON, no extra text.`,
+- Return ONLY valid JSON, no extra text.
+- If you cannot populate all fields with quality content, say so explicitly in the JSON.`,
 
   QUIZ_QUESTIONS: `You are creating fair, educational multiple-choice quiz questions.
 
@@ -143,11 +146,11 @@ export const VALIDATION_RULES = {
 
   // Patterns that indicate definitely-not-a-question inputs
   SPAM_PATTERNS: [
-    /^(.)\1{5,}$/i,                          // Repeated single character: aaaaaa
-    /^(https?:\/\/|www\.|@|#)/i,             // URLs, mentions, hashtags
-    /^\d{6,}$/i,                             // Just a long number
-    /^[^a-z0-9\s]{10,}$/i,                   // 10+ consecutive non-alphanumeric symbols
-    /^(\w+\s*){1}\1{4,}$/i,                  // Same word repeated 5+ times
+    /^(.)\1{5,}$/i, // Repeated single character: aaaaaa
+    /^(https?:\/\/|www\.|@|#)/i, // URLs, mentions, hashtags
+    /^\d{6,}$/i, // Just a long number
+    /^[^a-z0-9\s]{10,}$/i, // 10+ consecutive non-alphanumeric symbols
+    /^(\w+\s*){1}\1{4,}$/i, // Same word repeated 5+ times
   ],
 
   // Casual greetings that have no learning value when sent alone
@@ -159,41 +162,105 @@ export const VALIDATION_RULES = {
   // Personal / unanswerable questions — the AI has no access to user data
   // These MUST be checked before meaningful keywords because they contain "what", "my" etc.
   PERSONAL_QUESTION_PATTERNS: [
-    /\b(?:what(?:'s| is| are))\s+my\b/i,               // "what is my height", "what's my name"
-    /\b(?:tell|give)\s+me\s+my\b/i,                    // "tell me my age"
-    /\b(?:do you know)\s+my\b/i,                       // "do you know my name"
+    /\b(?:what(?:'s| is| are))\s+my\b/i, // "what is my height", "what's my name"
+    /\b(?:tell|give)\s+me\s+my\b/i, // "tell me my age"
+    /\b(?:do you know)\s+my\b/i, // "do you know my name"
     /\bmy\s+(?:height|weight|age|name|birthday|address|phone|email|location|password|account|ip|score|grade|gpa|rank|salary|income)\b/i,
-    /\b(?:how\s+(?:tall|old|heavy)\s+am\s+i)\b/i,      // "how tall am i", "how old am i"
-    /\b(?:where\s+(?:am|do)\s+i\s+live)\b/i,           // "where do i live"
-    /\b(?:who\s+am\s+i)\b/i,                           // "who am i" (personal context)
-    /\b(?:what(?:'s| is)\s+(?:my|the)\s+(?:time|date|weather))\b/i,  // "what's the time"
-    /\b(?:can you|do you)\s+(?:see|hear|feel|touch)\s+me\b/i,        // "can you see me"
-    /\b(?:remember|recall)\s+(?:me|my|what\s+i)\b/i,   // "do you remember me"
+    /\b(?:how\s+(?:tall|old|heavy)\s+am\s+i)\b/i, // "how tall am i", "how old am i"
+    /\b(?:where\s+(?:am|do)\s+i\s+live)\b/i, // "where do i live"
+    /\b(?:who\s+am\s+i)\b/i, // "who am i" (personal context)
+    /\b(?:what(?:'s| is)\s+(?:my|the)\s+(?:time|date|weather))\b/i, // "what's the time"
+    /\b(?:can you|do you)\s+(?:see|hear|feel|touch)\s+me\b/i, // "can you see me"
+    /\b(?:remember|recall)\s+(?:me|my|what\s+i)\b/i, // "do you remember me"
   ],
 
   // Keywords that strongly indicate a meaningful learning query
   MEANINGFUL_KEYWORDS: [
     // Question words
-    "what", "how", "why", "when", "where", "which", "who",
+    "what",
+    "how",
+    "why",
+    "when",
+    "where",
+    "which",
+    "who",
     // Action words
-    "explain", "define", "describe", "compare", "contrast", "analyze", "evaluate",
-    "calculate", "solve", "derive", "prove", "demonstrate",
+    "explain",
+    "define",
+    "describe",
+    "compare",
+    "contrast",
+    "analyze",
+    "evaluate",
+    "calculate",
+    "solve",
+    "derive",
+    "prove",
+    "demonstrate",
     // Learning words
-    "understand", "learn", "study", "teach", "help", "mean", "means",
-    "example", "examples",
+    "understand",
+    "learn",
+    "study",
+    "teach",
+    "help",
+    "mean",
+    "means",
+    "example",
+    "examples",
     // Generation words
-    "create", "generate", "make", "write", "build", "design",
-    "quiz", "flashcard", "flashcards", "notes", "summary", "summarize",
+    "create",
+    "generate",
+    "make",
+    "write",
+    "build",
+    "design",
+    "quiz",
+    "flashcard",
+    "flashcards",
+    "notes",
+    "summary",
+    "summarize",
     // Domain indicators
-    "theory", "concept", "principle", "law", "theorem", "formula",
-    "function", "method", "process", "system", "structure",
-    "difference", "between", "versus", "vs",
+    "theory",
+    "concept",
+    "principle",
+    "law",
+    "theorem",
+    "formula",
+    "function",
+    "method",
+    "process",
+    "system",
+    "structure",
+    "difference",
+    "between",
+    "versus",
+    "vs",
     // Technical
-    "algorithm", "data", "code", "program", "variable", "class",
-    "equation", "reaction", "element", "compound",
-    "history", "geography", "biology", "physics", "chemistry",
-    "math", "mathematics", "economics", "psychology", "philosophy",
-    "literature", "grammar", "syntax", "language",
+    "algorithm",
+    "data",
+    "code",
+    "program",
+    "variable",
+    "class",
+    "equation",
+    "reaction",
+    "element",
+    "compound",
+    "history",
+    "geography",
+    "biology",
+    "physics",
+    "chemistry",
+    "math",
+    "mathematics",
+    "economics",
+    "psychology",
+    "philosophy",
+    "literature",
+    "grammar",
+    "syntax",
+    "language",
   ],
 };
 
@@ -249,33 +316,79 @@ export enum QueryIntent {
 
 export const INTENT_KEYWORDS: Record<QueryIntent, string[]> = {
   [QueryIntent.NOTES]: [
-    "notes", "study guide", "study notes", "create notes", "generate notes",
-    "make notes", "write notes", "key points",
+    "notes",
+    "study guide",
+    "study notes",
+    "create notes",
+    "generate notes",
+    "make notes",
+    "write notes",
+    "key points",
   ],
   [QueryIntent.QUIZ]: [
-    "quiz", "test me", "test questions", "practice questions", "generate quiz",
-    "mcq", "multiple choice", "assessment",
+    "quiz",
+    "test me",
+    "test questions",
+    "practice questions",
+    "generate quiz",
+    "mcq",
+    "multiple choice",
+    "assessment",
   ],
   [QueryIntent.FLASHCARDS]: [
-    "flashcard", "flashcards", "revision cards", "flash cards",
-    "memorize", "recall cards", "study cards",
+    "flashcard",
+    "flashcards",
+    "revision cards",
+    "flash cards",
+    "memorize",
+    "recall cards",
+    "study cards",
   ],
   [QueryIntent.EXPLANATION]: [
-    "explain", "how does", "what is", "what are", "describe", "clarify",
-    "help me understand", "break down", "elaborate", "tell me about",
-    "meaning of", "define",
+    "explain",
+    "how does",
+    "what is",
+    "what are",
+    "describe",
+    "clarify",
+    "help me understand",
+    "break down",
+    "elaborate",
+    "tell me about",
+    "meaning of",
+    "define",
   ],
   [QueryIntent.COMPARISON]: [
-    "compare", "difference between", "versus", " vs ", "contrast",
-    "similar to", "distinguish", "how is.*different",
+    "compare",
+    "difference between",
+    "versus",
+    " vs ",
+    "contrast",
+    "similar to",
+    "distinguish",
+    "how is.*different",
   ],
   [QueryIntent.SUMMARY]: [
-    "summarize", "summary", "brief overview", "overview", "tl;dr",
-    "in short", "quick summary", "recap",
+    "summarize",
+    "summary",
+    "brief overview",
+    "overview",
+    "tl;dr",
+    "in short",
+    "quick summary",
+    "recap",
   ],
   [QueryIntent.GENERAL_QUESTION]: [
-    "answer", "tell me", "how to", "why does", "why is", "why do",
-    "can you", "help me", "i want to know", "i need to understand",
+    "answer",
+    "tell me",
+    "how to",
+    "why does",
+    "why is",
+    "why do",
+    "can you",
+    "help me",
+    "i want to know",
+    "i need to understand",
   ],
   [QueryIntent.UNKNOWN]: [],
 };
@@ -292,9 +405,9 @@ export const RETRY_CONFIG = {
 };
 
 export const CIRCUIT_BREAKER_CONFIG = {
-  FAILURE_THRESHOLD: 5,           // failures before opening circuit
-  RECOVERY_TIMEOUT_MS: 60_000,    // 1 minute before trying again
-  HALF_OPEN_MAX_CALLS: 2,         // test calls in half-open state
+  FAILURE_THRESHOLD: 5, // failures before opening circuit
+  RECOVERY_TIMEOUT_MS: 60_000, // 1 minute before trying again
+  HALF_OPEN_MAX_CALLS: 2, // test calls in half-open state
 };
 
 // ============================================================================

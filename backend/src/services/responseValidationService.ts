@@ -67,11 +67,15 @@ class ResponseValidationService {
 
     // ---- Check 4: Model refusal / meta-talk ----
     if (this.isModelRefusal(response)) {
-      issues.push("Response is a model refusal or meta-talk, not actual content");
+      issues.push(
+        "Response is a model refusal or meta-talk, not actual content",
+      );
       confidence -= 0.4;
     }
 
-    const isValid = confidence >= QUALITY_THRESHOLDS.CONFIDENCE_THRESHOLD && issues.length <= 1;
+    const isValid =
+      confidence >= QUALITY_THRESHOLDS.CONFIDENCE_THRESHOLD &&
+      issues.length <= 1;
 
     logger.debug("ResponseValidation", "Free-text response validated", {
       isValid,
@@ -110,21 +114,34 @@ class ResponseValidationService {
 
     // Check for notes-specific structure
     if ("definition" in obj || "key_concepts" in obj) {
-      // This looks like a notes response
-      if (!obj.definition || (typeof obj.definition === "string" && obj.definition.length < 5)) {
+      // This looks like a notes response — all fields are required and must be non-empty
+      if (
+        !obj.definition ||
+        (typeof obj.definition === "string" && obj.definition.length < 5)
+      ) {
         issues.push("Missing or too-short definition");
-        confidence -= 0.2;
+        confidence -= 0.25;
       }
-      for (const arrField of ["key_concepts", "important_points", "examples"] as const) {
+
+      const requiredArrayFields = [
+        "key_concepts",
+        "important_points",
+        "examples",
+        "exam_highlights",
+      ] as const;
+
+      for (const arrField of requiredArrayFields) {
         if (!obj[arrField]) {
           issues.push(`Missing required field: ${arrField}`);
-          confidence -= 0.15;
+          confidence -= 0.2;
         } else if (!Array.isArray(obj[arrField])) {
           issues.push(`Field '${arrField}' should be an array`);
-          confidence -= 0.15;
+          confidence -= 0.2;
         } else if ((obj[arrField] as unknown[]).length === 0) {
-          issues.push(`Array '${arrField}' is empty`);
-          confidence -= 0.1;
+          issues.push(
+            `Array '${arrField}' is empty — all sections must have content`,
+          );
+          confidence -= 0.25; // Stricter penalty for empty arrays
         }
       }
     }
@@ -146,7 +163,11 @@ class ResponseValidationService {
             issues.push(`Question ${i + 1} is malformed`);
             confidence -= 0.1;
           }
-          if (typeof q.correctAnswer !== "number" || q.correctAnswer < 0 || q.correctAnswer > 3) {
+          if (
+            typeof q.correctAnswer !== "number" ||
+            q.correctAnswer < 0 ||
+            q.correctAnswer > 3
+          ) {
             issues.push(`Question ${i + 1} has invalid correctAnswer`);
             confidence -= 0.1;
           }
@@ -175,7 +196,9 @@ class ResponseValidationService {
       }
     }
 
-    const isValid = confidence >= 0.5;
+    const isValid =
+      confidence >= QUALITY_THRESHOLDS.CONFIDENCE_THRESHOLD &&
+      issues.length === 0;
 
     logger.debug("ResponseValidation", "Structure validated", {
       isValid,
@@ -226,9 +249,34 @@ class ResponseValidationService {
 
     // Check word repetition (excluding common stop words)
     const stopWords = new Set([
-      "the", "a", "an", "is", "are", "was", "were", "be", "been",
-      "and", "or", "but", "in", "on", "at", "to", "for", "of", "with",
-      "it", "this", "that", "as", "by", "from", "not", "can", "will",
+      "the",
+      "a",
+      "an",
+      "is",
+      "are",
+      "was",
+      "were",
+      "be",
+      "been",
+      "and",
+      "or",
+      "but",
+      "in",
+      "on",
+      "at",
+      "to",
+      "for",
+      "of",
+      "with",
+      "it",
+      "this",
+      "that",
+      "as",
+      "by",
+      "from",
+      "not",
+      "can",
+      "will",
     ]);
 
     const words = response.toLowerCase().match(/\b[a-z]{2,}\b/g) || [];
