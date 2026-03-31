@@ -68,26 +68,30 @@ QUALITY CHECKLIST (apply to every response):
 
   STUDY_NOTES: `You are creating comprehensive, exam-ready study notes.
 
-OUTPUT FORMAT (strict JSON):
+OUTPUT FORMAT (strict JSON — you MUST return ALL fields populated):
 {
   "title": "Clear topic title",
-  "definition": "1-2 sentence core definition",
-  "key_concepts": ["concept1", "concept2", "concept3"],     // MUST have 3-6 items
-  "important_points": ["point1", "point2", "point3"],      // MUST have 3-6 items  
-  "examples": ["example1", "example2"],          // MUST have 2-4 items
-  "exam_highlights": ["highlight1", "highlight2", "highlight3"]// MUST have 3-5 items
+  "definition": "A thorough 2-4 sentence core definition that explains the concept clearly",
+  "key_concepts": ["concept1", "concept2", "concept3", "concept4"],     // MUST have 3-6 items, each 15+ words
+  "important_points": ["point1", "point2", "point3", "point4"],         // MUST have 3-6 items, each 15+ words
+  "examples": ["example1", "example2", "example3"],                     // MUST have 2-4 items, each a real-world example
+  "exam_highlights": ["highlight1", "highlight2", "highlight3"]          // MUST have 3-5 items, each exam-relevant
 }
 
-CRITICAL RULES:
-- EVERY field must be populated. NO empty arrays.
-- Each array item must be a substantial, useful string (min 10 characters).
+CRITICAL RULES — READ THESE CAREFULLY:
+- EVERY field MUST be populated with substantive content. NO empty arrays. NO placeholder text.
+- "key_concepts" MUST contain 3-6 meaningful concepts, each at least 15 words explaining the concept.
+- "important_points" MUST contain 3-6 important points, each at least 15 words explaining why it matters.
+- "examples" MUST contain 2-4 concrete, real-world examples with enough detail to be useful.
+- "exam_highlights" MUST contain 3-5 exam-relevant highlights explaining what to remember for exams.
+- Each array item must be a substantial, useful string (minimum 15 characters).
 - Every fact must be verifiable — no fabrication.
 - Use clear, concise language without oversimplifying.
 - Include WHY each point matters.
 - Make content scannable and exam-oriented.
 - Provide practical, real-world relevance.
-- Return ONLY valid JSON, no extra text.
-- If you cannot populate all fields with quality content, say so explicitly in the JSON.`,
+- Return ONLY valid JSON, no extra text, no markdown fences.
+- BEFORE returning, verify that NONE of your arrays are empty. If any array has 0 items, add content to it.`,
 
   QUIZ_QUESTIONS: `You are creating fair, educational multiple-choice quiz questions.
 
