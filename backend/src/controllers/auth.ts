@@ -57,8 +57,13 @@ export const register = async (
 
     res.status(201).json(response);
   } catch (error) {
-    console.error("Register error:", error);
-    res.status(500).json({ error: "Registration failed" });
+    console.error(
+      "Register error:",
+      error instanceof Error ? error.message : error,
+    );
+    const errorMsg =
+      error instanceof Error ? error.message : "Registration failed";
+    res.status(500).json({ error: errorMsg });
   }
 };
 
@@ -98,8 +103,12 @@ export const login = async (req: AuthRequest, res: Response): Promise<void> => {
 
     res.json(response);
   } catch (error) {
-    console.error("Login error:", error);
-    res.status(500).json({ error: "Login failed" });
+    console.error(
+      "Login error:",
+      error instanceof Error ? error.message : error,
+    );
+    const errorMsg = error instanceof Error ? error.message : "Login failed";
+    res.status(500).json({ error: errorMsg });
   }
 };
 

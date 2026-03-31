@@ -84,6 +84,10 @@ const connectDB = async (): Promise<boolean> => {
         console.log("MongoDB connected");
         return true;
       } catch (err) {
+        console.error(
+          `MongoDB connection attempt ${i + 1} failed:`,
+          err instanceof Error ? err.message : err,
+        );
         if (i < maxRetries - 1) {
           console.log(`Retry ${i + 1}/${maxRetries}...`);
           await new Promise((resolve) => setTimeout(resolve, 2000));
@@ -93,6 +97,7 @@ const connectDB = async (): Promise<boolean> => {
 
     dbStatus = "degraded";
     console.log("MongoDB not available - API running in degraded mode");
+    console.log("MONGODB_URI present:", !!process.env.MONGODB_URI);
     return false;
   } catch (error) {
     dbStatus = "degraded";
